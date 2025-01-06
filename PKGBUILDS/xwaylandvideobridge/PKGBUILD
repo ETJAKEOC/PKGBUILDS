@@ -1,0 +1,44 @@
+pkgname=xwaylandvideobridge
+pkgver=0.4.0
+pkgrel=2
+pkgdesc='Utility to allow streaming Wayland windows to X applications'
+arch=(x86_64)
+url='https://invent.kde.org/system/xwaylandvideobridge'
+license=(LGPL GPL)
+depends=(
+    glibc
+    gcc-libs
+    qt6-base
+    qt6-declarative
+    kcoreaddons
+    ki18n
+    kwindowsystem
+    kpipewire
+    kstatusnotifieritem
+    libxcb
+)
+
+makedepends=(
+    extra-cmake-modules
+    kdoctools
+    knotifications
+)
+
+source=(https://download.kde.org/stable/xwaylandvideobridge/$pkgname-$pkgver.tar.xz)
+
+sha256sums=('SKIP')
+
+build() {
+  cmake -B build -S $pkgname-$pkgver -DBUILD_TESTING=OFF -DQT_MAJOR_VERSION=6 CC=clang CPP=clang-cpp CXX=clang++ LD=ld.lld CC_LD=ld.lld CXX_LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy \
+	OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=ld.lld \
+	CFLAGS="-march=native -mtune=native -O3 -fopenmp -flto -pipe -pthread -fPIC -g0" \
+	CXXFLAGS="-march=native -mtune=native -O3 -fopenmp -flto -pipe -pthread -fPIC -g0" \
+	CPPFLAGS="-march=native -mtune=native -pipe" \
+	LDFLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread" \
+	RUSTFLAGS="-C link-dead-code=off -C opt-level=3 -C target-cpu=native -C codegen-units=4 -C linker-plugin-lto -C panic=abort -C lto -C debuginfo=1 -C target-feature=+aes,+sse4.2,+clzero,+mmx,+3dnow"
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

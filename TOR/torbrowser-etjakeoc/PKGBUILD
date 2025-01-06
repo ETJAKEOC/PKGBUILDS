@@ -1,0 +1,54 @@
+pkgname=torbrowser-etjakeoc
+pkgver=14.0.3
+pkgrel=1
+pkgdesc="Custom compile of the TOR browser, verified against the TOR keys, from ETJAKEOC"
+arch=('any')
+url="https://dist.torproject.org/torbrowser"
+provides=("${pkgname%}")
+conflicts=("${pkgname%}" "torbrowser-launcher" "torbrowser-launcher-git")
+options=('!strip')
+source=(${url}/${pkgver}/tor-browser-linux-x86_64-${pkgver}.tar.xz
+	${url}/${pkgver}/tor-browser-linux-x86_64-${pkgver}.tar.xz.asc)
+sha256sums=('59d743b3995015975ef10cbfee7421193aeb4fd06256cc2b8aa3a93d5a60bf06'
+	    'SKIP')
+
+prepare() {
+	cd ${srcdir}
+
+	# Locate and retrieve the Tor signing key
+	gpg --auto-key-locate nodefault,wkd --locate-keys torbrowser@torproject.org
+	# Extract the key ID dynamically
+	KEY_ID=$(gpg --list-keys --with-colons torbrowser@torproject.org | awk -F: '/^pub/ {print $5}' | head -n 1)
+	# Export the key to a keyring file
+	if [[ -n "$KEY_ID" ]]; then
+		gpg --output ./tor.keyring --export "$KEY_ID"
+		# Verify the signature
+		gpgv --keyring ./tor.keyring "tor-browser-linux-x86_64-${pkgver}.tar.xz.asc" "tor-browser-linux-x86_64-${pkgver}.tar.xz"
+		# Set the retrieved key to ultimate trust
+		echo -e "trust\n5\ny\n" | gpg --command-fd 0 --edit-key "$KEY_ID"
+	else
+		echo "Failed to retrieve Tor signing key ID. Exiting for safety." >&2
+		exit 1
+	fi
+
+	# Address an issue in the 'start-tor-browser' file where TOR fucking deletes itself <.< (bug?)
+	sed -i 's|"rm -rf "${_TB_APP_DIR_}"/*"|"# rm -rf "${_TB_APP_DIR_}"/*"|' ${srcdir}/tor-browser/Browser/start-tor-browser
+
+	# Address an issue in the 'start-tor-browser' file that points the application to the wrong place.
+	sed -i 's|_TB_APP_DIR_="${_TB_HOME_DIR_}/app"|_TB_APP_DIR_="${_TB_HOME_DIR_}/"|' ${srcdir}/tor-browser/Browser/start-tor-browser
+}
+
+package() {
+	cd ${srcdir}/tor-browser
+
+	# Install to /opt/tor-browser
+	install -dm755 ${pkgdir}/opt/tor-browser
+	cp -r * ${pkgdir}/opt/tor-browser
+
+	# Create a desktop entry for convenience
+	install -Dm644 ${srcdir}/tor-browser/start-tor-browser.desktop ${pkgdir}/usr/share/applications/tor-browser.desktop
+
+	# Create a symlink for easier command-line launching
+	install -dm755 ${pkgdir}/usr/bin
+	ln -s /opt/tor-browser/Browser/start-tor-browser ${pkgdir}/usr/bin/torbrowser
+}

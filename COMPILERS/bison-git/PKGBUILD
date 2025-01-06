@@ -1,0 +1,42 @@
+pkgname=bison-git
+pkgver=3.8.2.r46.g97852f39
+pkgrel=1
+pkgdesc="The GNU general-purpose parser generator"
+arch=('i686' 'x86_64')
+url="https://www.gnu.org/software/bison/bison.html"
+license=('GPL3')
+depends=('glibc')
+makedepends=('git' 'gperf' 'gzip' 'help2man' 'rsync' 'tar' 'wget')
+provides=("bison=$pkgver")
+conflicts=('bison')
+source=("git+https://git.savannah.gnu.org/git/bison.git")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "bison"
+  git submodule update --init --recursive
+}
+
+pkgver() {
+  cd "bison"
+  git describe --long --tags | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+  cd "bison"
+  export LINGUAS="en"
+  ./bootstrap
+  export LINGUAS="en"
+  ./configure -C --prefix=/usr --datadir=/usr/share --enable-lto=true --enable-llvm=true --enable-threads=isox+posix --disable-assert --enable-dependency-tracking CC=clang CPP=clang-cpp CXX=clang++ \
+  CFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CXXFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CPPFLAGS="-march=bdver2 -mtune=bdver2 -pipe" \
+  LDFLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread"
+  export LINGUAS="en"
+  make LLVM=1 LLVM_IAS=1 -j4
+}
+
+package() {
+  cd "bison"
+  make DESTDIR="$pkgdir" install
+}

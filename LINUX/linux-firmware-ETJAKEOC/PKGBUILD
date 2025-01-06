@@ -1,0 +1,34 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+
+pkgname=linux-firmware-ETJAKEOC
+pkgver=20241210.15.g9e1d9ae6
+pkgrel=1
+pkgdesc="Firmware files for Linux - pulled directly from git.kernel.org, packaged up by ETJAKEOC"
+arch=("any")
+url="https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
+license=("custom")
+makedepends=("git")
+source=("git+${url}")
+md5sums=("SKIP")
+options=("!strip")
+provides=("linux-firmware" "linux-firmware-git" "linux-firmware-whence" "linux-firmware-whence-git")
+conflicts=("linux-firmware" "linux-firmware-git" "linux-firmware-whence" "linux-firmware-whence-git")
+_gitname="linux-firmware"
+
+pkgver() {
+	cd "${srcdir}/${_gitname}"
+	git describe --tags --always | sed 's/-/./g'
+}
+
+build() {
+	cd "${srcdir}/${_gitname}"
+	git submodule update --init --recursive
+}
+
+package() {
+	cd "${srcdir}/${_gitname}"
+	install -dm755 "${pkgdir}/usr/lib/firmware"
+	cp -r ./* "${pkgdir}/usr/lib/firmware/"
+	find "${pkgdir}/usr/lib/firmware/" -name ".git*" -exec rm -rf {} +
+	install -Dm644 LICENSE.* "${pkgdir}/usr/lib/firmware/"
+}

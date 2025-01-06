@@ -1,0 +1,23 @@
+[binaries]
+c = 'clang'
+gcc = 'clang'
+cpp = 'clang++'
+c_ld = 'lld'
+cpp_ld = 'lld'
+rust_ld = 'clang'
+ar = 'llvm-ar'
+strip = 'llvm-strip'
+rust = 'rustc'
+pkg-config = 'pkg-config'
+llvm-config = 'llvm-config'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+
+[builtin options]
+c_args = ['-march=bdver2', '-mtune=bdver2', '-O3', '-fopenmp', '-pipe', 'pthread', '-g0', '-flto', 'fPIC']
+cpp_args = ['-march=bdver2', '-mtune=bdver2', '-O3', '-fopenmp', '-pipe', 'pthread', '-g0', '-flto', 'fPIC']
+ld_args = ['-fuse-ld=lld', '-fPIC', '-flto', '-O3', '-pthread', '-Wl,--plugin-opt=O3']

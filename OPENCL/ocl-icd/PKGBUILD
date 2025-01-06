@@ -1,0 +1,39 @@
+pkgname=ocl-icd
+pkgver=2.3.2.0.gfdde667
+pkgrel=1
+pkgdesc="OpenCL ICD Bindings"
+arch=('x86_64')
+url="https://github.com/OCL-dev/ocl-icd"
+license=('BSD')
+depends=('glibc')
+makedepends=('ruby' 'mesa' 'xmlto' 'asciidoc' 'opencl-headers>=2.1')
+provides=('opencl-icd-loader')
+conflicts=('libcl')
+replaces=('libcl')
+optdepends=('opencl-driver: packaged opencl driver')
+source=("ocl-icd::git+https://github.com/OCL-dev/${pkgname}")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/$pkgname"
+  git describe --tags --long | sed 's/^v//;s/-/./g;s/-g/./'
+}
+
+prepare() {
+  cd "$srcdir/$pkgname"
+  autoreconf -fiv
+}
+
+build() {
+  source /etc/environment
+  cd "$srcdir/$pkgname"
+  ./configure --prefix=/usr --enable-fast-install --disable-debug CC="$CC" CPP="$CPP" CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS"
+  make LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+  make DESTDIR="$pkgdir/" install
+  install -m755 -d "$pkgdir/usr/share/licenses/ocl-icd"
+  install -m644 "$srcdir/$pkgname/COPYING" "${pkgdir}/usr/share/licenses/ocl-icd/"
+}

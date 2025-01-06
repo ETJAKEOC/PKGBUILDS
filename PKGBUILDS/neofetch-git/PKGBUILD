@@ -1,0 +1,25 @@
+pkgname=neofetch-git
+_pkgname=neofetch
+pkgver=7.1.0.r166.gccd5d9f5
+pkgrel=1
+pkgdesc="A CLI system information tool written in BASH that supports displaying images."
+arch=('any')
+url="https://github.com/dylanaraps/${_pkgname}"
+license=('MIT')
+provides=($_pkgname)
+conflicts=($_pkgname)
+depends=('bash')
+makedepends=('git')
+source=("$pkgname::git+https://github.com/dylanaraps/neofetch.git")
+md5sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+  git describe --tags --long | sed -r -e 's,^[^0-9]*,,;s,([^-]*-g),r\1,;s,[-_],.,g'
+}
+
+package() {
+  cd $pkgname
+  make DESTDIR="$pkgdir" install
+  install -D -m644 LICENSE.md "$pkgdir/usr/share/licenses/neofetch/LICENSE.md"
+}

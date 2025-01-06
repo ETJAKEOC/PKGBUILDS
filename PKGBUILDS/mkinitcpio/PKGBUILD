@@ -1,0 +1,29 @@
+pkgname=mkinitcpio
+pkgver=40
+pkgrel=3
+pkgdesc="Modular initramfs image creation utility"
+arch=('any')
+url='https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio'
+license=('GPL-2.0-only')
+depends=('awk' 'mkinitcpio-busybox' 'kmod' 'util-linux' 'libarchive' 'coreutils'
+ 'bash' 'binutils' 'diffutils' 'findutils' 'grep' 'gzip' 'filesystem' 'zstd' 'systemd')
+checkdepends=('bats' 'bats-assert' 'lzop')
+makedepends=('asciidoctor')
+optdepends=('xz' 'bzip2' 'lzop' 'lz4' 'mkinitcpio-nfs-utils' 'systemd-ukify')
+provides=('initramfs')
+backup=('etc/mkinitcpio.conf')
+source=("${pkgname}::git+${url}" '0001-trigger.patch')
+sha512sums=('SKIP' 'SKIP')
+
+prepare() {
+  cd ${pkgname}
+  patch -Np1 < ../0001-trigger.patch
+}
+
+build() {
+  arch-meson ${pkgname}
+}
+
+package() {
+  DESTDIR="${pkgdir}" meson.real install -C setup
+}

@@ -1,0 +1,17 @@
+pkgname=llama.cpp
+pkgrel=1
+pkgver=420.69
+arch=('x86_64')
+url=https://github.com/ggerganov/llama.cpp
+source=(git+${url}.git)
+sha256sums=('SKIP')
+build() {
+	cd ${pkgname}
+	cmake .
+	make LLVM=1 LLVM_IAS=1
+}
+
+package() {
+	install -Dm755 ${srcdir}/${pkgname}/bin/* -t ${pkgdir}/usr/bin
+	install -Dm755 ${srcdir}/${pkgname}/include/* -t ${pkgdir}/usr/include
+}

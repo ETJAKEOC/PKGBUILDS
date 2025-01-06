@@ -1,0 +1,40 @@
+pkgname=file
+pkgver=5.46
+pkgrel=2
+pkgdesc='File type identification utility'
+arch=('x86_64')
+license=('custom')
+url='https://www.darwinsys.com/file/'
+depends=('glibc' 'zlib' 'xz' 'bzip2' 'libseccomp' 'libseccomp.so' 'zstd' 'libzstd.so')
+provides=('libmagic.so')
+options=('!emptydirs')
+source=("https://astron.com/pub/$pkgname/$pkgname-$pkgver.tar.gz"{,.asc}
+        '0001-PR-579-net147-Fix-stack-overrun.patch')
+sha256sums=('c9cc77c7c560c543135edc555af609d5619dbef011997e988ce40a3d75d86088'
+            'SKIP'
+            '2db041dcadaf8500a8e10d914890963f27a5b716e97f0baf839e01f7c3d8b576')
+
+prepare() {
+  cd $pkgname-$pkgver
+  local src
+  for src in "${source[@]}"; do
+    src="${src%%::*}"
+    src="${src##*/}"
+    [[ $src = *.patch ]] || continue
+    echo "Applying patch $src..."
+    patch -Np1 < "../$src"
+  done
+}
+
+build() {
+  cd $pkgname-$pkgver
+  ./configure --prefix=/usr --datadir=/usr/share/file --enable-fsect-man5 --enable-libseccomp
+  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+  make LLVM=1 LLVM_IAS=1 -j4
+}
+
+package() {
+  cd $pkgname-$pkgver
+  make DESTDIR="$pkgdir" install
+  install -Dm644 COPYING "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+}

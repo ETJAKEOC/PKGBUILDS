@@ -1,0 +1,37 @@
+pkgname=libtool-git
+pkgver=2.5.4+1.gbaa1fe41
+pkgrel=1
+pkgdesc="A generic library support script (git version)"
+arch=('i686' 'x86_64')
+url="http://www.gnu.org/software/libtool"
+license=('GPL')
+groups=('base-devel')
+depends=('sh' 'tar' 'glibc')
+makedepends=("clang")
+provides=("libtool=$pkgver" "libltdl=$pkgver" "libtool-multilib=$pkgver")
+conflicts=('libtool' 'libltdl' 'libtool-multilib')
+replaces=('libtool' 'libltdl' 'libtool-multilib')
+source=(git://git.savannah.gnu.org/libtool.git)
+md5sums=('SKIP')
+
+pkgver() {
+  cd ${srcdir}/libtool
+  git describe --long --abbrev=8 | sed 's/^v//; s/-/+/; s/-/\./'
+}
+
+build() {
+  cd ${srcdir}/libtool
+  ./bootstrap
+  ./configure -C --prefix=/usr lt_cv_sys_lib_dlsearch_path_spec="/usr/lib /usr/lib32" --datadir=/usr/share --enable-lto=true --enable-llvm=true \
+  --enable-ltdl-install --enable-threads=isox+posix --disable-assert --enable-dependency-tracking CC=clang CPP=clang-cpp CXX=clang++ \
+  CFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CXXFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CPPFLAGS="-march=bdver2 -mtune=bdver2 -pipe" \
+  LDFLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread"
+  make LLVM=1 LLVM_IAS=1 -j4
+}
+
+package() {
+  cd ${srcdir}/libtool
+  make DESTDIR=${pkgdir} install
+}

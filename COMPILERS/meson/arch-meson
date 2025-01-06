@@ -1,0 +1,64 @@
+#!/bin/bash -ex
+# Highly opinionated wrapper for Arch Linux packaging
+
+export CCACHE_MAXSIZE="50G"
+export CCACHE_NOCOMPRESS="true"
+export CCACHE_COMPRESSLEVEL="9"
+export CCACHE_DIR="/STORAGE/ccache"
+
+LD=ld.lld
+
+export CC=clang
+export CPP=clang-cpp
+export CXX=clang++
+export LD=$LD
+export CC_LD=$LD
+export CXX_LD=$LD
+export AR=llvm-ar
+export NM=llvm-nm
+export STRIP=llvm-strip
+export OBJCOPY=llvm-objcopy
+export OBJDUMP=llvm-objdump
+export READELF=llvm-readelf
+export RANLIB=llvm-ranlib
+export HOSTCC=clang
+export HOSTCXX=clang++
+export HOSTAR=llvm-ar
+export HOSTLD=$LD
+export LLVM_VERSION=20
+
+export CFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0"
+export CXXFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0"
+export CPPFLAGS="-march=bdver2 -mtune=bdver2 -pipe"
+export LDFLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread"
+export RUSTFLAGS="-C link-dead-code=off -C opt-level=3 -C target-cpu=bdver2 -C codegen-units=4 -C linker-plugin-lto -C panic=abort -C lto=full -C debuginfo=1 -C target-feature=+aes,+sse4.2,+clzero,+mmx,+3dnow"
+
+export DEBUG_CFLAGS="-fasynchronous-unwind-tables -g1"
+export DEBUG_CXXFLAGS="$DEBUG_CFLAGS"
+export DEBUG_RUSTFLAGS="-C debuginfo=2"
+
+export MAKEFLAGS="-j$(nproc)"
+export NINJAFLAGS="-j$(nproc)"
+
+#cnt='/usr/local/include/clang-native.txt'
+#  --native-file	  "$cnt" \
+
+exec taskset -c 0,1,2,3 meson setup \
+  --optimization  3 \
+  --prefix        /usr \
+  --sysconfdir	  /etc \
+  --libexecdir    lib \
+  --sbindir       bin \
+  --auto-features enabled \
+  --reconfigure \
+  -D              b_pie=true \
+  -D		  b_staticpic=true \
+  -D              b_lto=true \
+  -D              python.bytecompile=2 \
+  -D		  backend=ninja \
+  -D		  b_colorout=always\
+  -D		  c_args='-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0' \
+  -D		  c_link_args='-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread' \
+  -D		  cpp_args='-march=bdver2 -mtune=bdver2 -pipe' \
+  -D		  cpp_link_args='-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread' \
+  "$@"

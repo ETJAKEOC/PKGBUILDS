@@ -1,0 +1,45 @@
+pkgname=glslang
+pkgver=15.1.0
+pkgrel=2
+pkgdesc='OpenGL and OpenGL ES shader front end and validator'
+arch=('x86_64')
+url='https://github.com/KhronosGroup/glslang'
+license=('BSD-3-Clause')
+depends=('gcc-libs' 'spirv-tools')
+makedepends=('cmake' 'ninja' 'spirv-headers' 'python')
+options=('staticlibs')
+source=(${pkgname}::git+https://github.com/KhronosGroup/glslang.git)
+sha256sums=('SKIP')
+
+build() {
+  cd ${pkgname}
+  CXXFLAGS+=" -ffat-lto-objects"
+  cmake \
+    -Bbuild-static \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=None \
+    -DALLOW_EXTERNAL_SPIRV_TOOLS=ON \
+    -DBUILD_SHARED_LIBS=OFF
+  cmake --build build-static
+  cmake \
+    -Bbuild-shared \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=None \
+    -DALLOW_EXTERNAL_SPIRV_TOOLS=ON \
+    -DBUILD_SHARED_LIBS=ON \
+    -DGLSLANG_TESTS=ON
+  cmake --build build-shared
+}
+
+package() {
+  cd ${pkgname}
+  DESTDIR="${pkgdir}" cmake --install build-static
+  DESTDIR="${pkgdir}" cmake --install build-shared
+  install -Dm644 LICENSE.txt "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE
+  cd "${pkgdir}"/usr/lib
+  for lib in *.so; do
+    ln -sf "${lib}" "${lib}.0"
+  done
+}

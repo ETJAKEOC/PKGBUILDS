@@ -1,0 +1,52 @@
+pkgname='xmrig-donateless-git'
+pkgver=6.22.2.r3479.f9e990d0
+pkgrel=1
+pkgdesc='High Perf CryptoNote CPU Miner-No Donate Version'
+arch=('x86_64' 'armv7h' 'aarch64')
+url="https://github.com/xmrig/xmrig"
+provides=('xmrig-donateless' 'xmrig')
+depends=('libuv' 'libmicrohttpd' 'openssl' 'hwloc')
+optdepends=('monero: wallet')
+makedepends=('cmake')
+conflicts=('xmrig-bin' 'xmrig' 'xmrig-donateless')
+license=('GPL')
+backup=("etc/xmrig/xmrig.conf")
+source=("xmrig.service"
+	"xmrig.sysusers"
+	"$pkgname::git+${url}.git")
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  ( set -o pipefail
+    git describe --long 2>/dev/null | sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.r%s.%s" "$(cat src/version.h | grep APP_VERSION | awk '{ print $3 }' | sed 's/"//g')" \
+    "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+  )
+}
+
+prepare() {
+  cd "$pkgname"
+  mkdir -p build
+  cd src
+  sed -i 's/DonateLevel = .;/DonateLevel = 0;/g' donate.h
+}
+
+build() {
+  cd "$pkgname/build"
+  cmake .. \
+  -D CMAKE_C_FLAGS=" -march=bdver2 -mtune=bdver2 -fopenmp -flto -O3 -pthread -pipe -ffunction-sections -fdata-sections -g0" \
+  -D CMAKE_CXX_FLAGS=" -march=bdver2 -mtune=bdver2 -fopenmp -flto -O3 -pthread -pipe -ffunction-sections -fdata-sections -g0" \
+  -D CMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pthread"
+  make LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd "$pkgname"
+  install -Dm775 "build/xmrig" "${pkgdir}/usr/bin/xmrig"
+  install -Dm644 "src/config.json" "${pkgdir}/etc/xmrig/xmrig.conf"
+  install -Dm644 "${srcdir}/xmrig.service" "${pkgdir}/usr/lib/systemd/system/xmrig@.service"
+  install -Dm0644 "${srcdir}/xmrig.sysusers" "${pkgdir}/usr/lib/sysusers.d/xmrig.conf"
+}

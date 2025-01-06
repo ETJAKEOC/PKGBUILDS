@@ -1,0 +1,38 @@
+pkgname=m4-git
+pkgver=1.4.19.r994.gd69fa528
+pkgrel=1
+pkgdesc="The GNU macro processor"
+arch=('i686' 'x86_64')
+url="https://www.gnu.org/software/m4/m4.html"
+license=('GPL3')
+depends=('glibc')
+makedepends=('git' 'gettext' 'gperf' 'help2man' 'rsync' 'texinfo')
+provides=("m4=$pkgver")
+conflicts=('m4')
+source=("git+https://git.savannah.gnu.org/git/m4.git#branch=branch-2.0")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "m4"
+  _tag=$(git tag -l --sort -creatordate | grep -E '^v?[0-9\.]+' | head -n1)
+  _rev=$(git rev-list --count $_tag..HEAD)
+  _hash=$(git rev-parse --short HEAD)
+  printf "%s.r%s.g%s" "$_tag" "$_rev" "$_hash" | sed 's/^v//'
+}
+
+build() {
+  cd "m4"
+  ./bootstrap
+  ./configure -C --prefix=/usr --datadir=/usr/share --enable-lto=true --enable-llvm=true --enable-threads=isox+posix --disable-assert --enable-dependency-tracking --enable-c++ --enable-year2038 CC=clang CPP=clang-cpp CXX=clang++ \
+  CFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CXXFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CPPFLAGS="-march=bdver2 -mtune=bdver2 -pipe" \
+  LDFLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread"
+  make LLVM=1 LLVM_IAS=1 -j4
+}
+
+package() {
+  cd "m4"
+  make DESTDIR="$pkgdir" install
+}
+

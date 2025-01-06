@@ -1,0 +1,69 @@
+pkgname=mcpelauncher-ETJAKEOC
+pkgver=1.21.50
+pkgrel=1
+pkgdesc="Minecraft PE launcher for Linux"
+arch=('x86_64')
+url="https://github.com/minecraft-linux/mcpelauncher-manifest"
+license=('GPL')
+depends=('sdl2' 'mcpelauncher-ui')
+makedepends=('clang' 'llvm' 'lld' 'cmake' 'rust' 'git' 'fakeroot')
+source=('git+https://github.com/minecraft-linux/mcpelauncher-manifest.git')
+sha256sums=('SKIP')
+
+prepare() {
+	cd "$srcdir/mcpelauncher-manifest"
+	git submodule deinit -f linux-gamepad
+	git rm -f linux-gamepad
+	rm -rf .git/modules/linux-gamepad
+	sed -i '/linux-gamepad/d' .gitmodules
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/android-support-headers.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/arg-parser.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/base64.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/cll-telemetry.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/daemon-utils.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/eglut.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/epoll-shim.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/file-picker.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/file-util.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/game-window.git
+	git clone --depth 1 --recurse-submodules https://github.com/ocornut/imgui.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/libc-shim.git
+	git clone --depth 1 --recurse-submodules https://github.com/ChristopherHX/libjnivm.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/logger.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/mcpelauncher-client.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/mcpelauncher-common.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/mcpelauncher-core.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/mcpelauncher-errorwindow.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/mcpelauncher-linker.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/mcpelauncher-linux-bin.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/mcpelauncher-mac-bin.git
+	git clone --depth 1 --recurse-submodules https://github.com/freundTech/mcpelauncher-webview.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/minecraft-imported-symbols.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/msa-daemon-client.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/osx-elf-header.git
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/properties-parser.git
+	git clone --depth 1 --recurse-submodules https://github.com/libsdl-org/SDL.git
+	rm -rf sdl3 && ln -sf SDL sdl3
+	git clone --depth 1 --recurse-submodules https://github.com/minecraft-linux/simple-ipc.git
+}
+
+build() {
+	cd "$srcdir/mcpelauncher-manifest"
+	mkdir -p build && cd build
+
+	CC=clang CPP=clang-cpp CXX=clang++ LD=ld.lld CC_LD=ld.lld CXX_LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy \
+	OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=ld.lld \
+	CFLAGS="-march=native -mtune=native -O3 -fopenmp -flto -pipe -pthread -fPIC -g0" \
+	CXXFLAGS="-march=native -mtune=native -O3 -fopenmp -flto -pipe -pthread -fPIC -g0" \
+	CPPFLAGS="-march=native -mtune=native -pipe" \
+	LDFLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread" \
+	RUSTFLAGS="-C link-dead-code=off -C opt-level=3 -C target-cpu=native -C codegen-units=4 -C linker-plugin-lto -C panic=abort -C lto -C debuginfo=1 -C target-feature=+aes,+sse4.2,+clzero,+mmx,+3dnow" \
+	cmake .. -Wno-dev -DCMAKE_BUILD_TYPE=Release -DJNI_USE_JNIVM=ON -DGAMEWINDOW_SYSTEM=SDL3
+
+	make LLVM=1 LLVM_IAS=1 -j$(nproc)
+}
+
+package() {
+	cd "$srcdir/mcpelauncher-manifest/build"
+	make install DESTDIR="$pkgdir"
+}
