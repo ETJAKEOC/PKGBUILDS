@@ -1,0 +1,19 @@
+pkgname=arm-linux-gnueabihf-gcc-debian
+pkgver=15.1.0
+pkgrel=1
+arch=('x86_64' 'armv7h')
+url="https://deb.debian.org/"
+license=('GPL' 'LGPL')
+depends=('glibc' 'binutils')
+source=(https://ftp.debian.org/debian/pool/main/g/gcc-15-cross/gcc-15-arm-linux-gnueabihf_${pkgver}-1cross1_amd64.deb)
+sha256sums=('SKIP')
+
+prepare() {
+    tar -xf "${srcdir}/data.tar.xz" -C "${srcdir}"
+}
+
+package() {
+    cp -a "${srcdir}/usr" "${pkgdir}"
+    find "$pkgdir" -type f -exec chmod 644 {} +
+    find "$pkgdir" -type d -exec chmod 755 {} +
+}

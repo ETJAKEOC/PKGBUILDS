@@ -1,0 +1,69 @@
+pkgname=gcc-ETJAKEOC
+pkgver=15.2.0
+pkgrel=1
+arch=('x86_64')
+url="https://gcc.gnu.org/"
+license=('GPL' 'LGPL' 'FDL')
+makedepends=('binutils' 'libmpc' 'mpfr' 'gmp' 'isl' 'zlib')
+depends=('glibc')
+source=("https://ftp.gnu.org/gnu/gcc/gcc-${pkgver}/gcc-${pkgver}.tar.xz")
+sha256sums=('SKIP')
+options=("!lto")
+
+_targets=(
+    "x86_64-pc-linux-gnu"
+    "arm-linux-gnueabihf"
+    "aarch64-linux-gnu"
+)
+
+build() {
+    cd "$srcdir"
+
+    export CPPFLAGS="-pipe -O3 -I/usr/include"
+    export CFLAGS="-pipe -O3 -I/usr/include"
+    export CXXFLAGS="-pipe -O3 -I/usr/include"
+    export LDFLAGS="-L/usr/lib"
+
+    export CC=gcc
+    export CXX=g++
+    export LD=ld.gold
+    export AR=ar
+    export NM=nm
+    export RANLIB=ranlib
+
+    for _tgt in "${_targets[@]}"; do
+        mkdir -p "build-${_tgt}"
+        pushd "build-${_tgt}"
+
+        ../gcc-${pkgver}/configure \
+            --prefix=/usr \
+            --target="$_tgt" \
+            --enable-languages=c,c++ \
+            --disable-multilib \
+            --disable-bootstrap \
+            --disable-nls \
+            --disable-lto \
+            --disable-default-pie \
+            --with-system-zlib
+
+        make all-gcc -j"$(nproc)"
+        popd
+    done
+}
+
+package() {
+    # x86_64 native
+    cd "$srcdir/build-x86_64-pc-linux-gnu"
+    make DESTDIR="$pkgdir" install-gcc
+    cd "$srcdir"
+
+    # armhf cross
+    cd "$srcdir/build-arm-linux-gnueabihf"
+    make DESTDIR="$pkgdir" install-gcc
+    cd "$srcdir"
+
+    # aarch64 cross
+    cd "$srcdir/build-aarch64-linux-gnu"
+    make DESTDIR="$pkgdir" install-gcc
+    cd "$srcdir"
+}

@@ -1,0 +1,20 @@
+--- src/imgui_ui.cpp	2025-06-19 23:19:16.150338834 -0400
++++ src/imgui_ui.cpp	2025-06-19 23:20:17.342649835 -0400
+@@ -77,7 +77,7 @@
+ 
+     IM_FREE(data);
+ 
+-    ImGui_ImplOpenGL3_CreateFontsTexture();
++    ImGui_ImplOpenGL3_CreateDeviceObjects();
+ }
+ 
+ struct MenuEntry {
+@@ -92,7 +92,7 @@
+     }
+     WindowControl(WindowControl&& control) {
+         type = control.type;
+-        memcpy(&data, &control.data, sizeof(control.data));
++        memcpy((void*)&data, (const void*)&control.data, sizeof(control.data));
+         control.type = -1;
+     }
+     int type = -1;

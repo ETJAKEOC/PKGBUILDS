@@ -1,0 +1,24 @@
+pkgname=lz4
+epoch=1
+pkgver=1.10.0
+pkgrel=2
+pkgdesc='Extremely fast compression algorithm'
+arch=('x86_64')
+url='https://lz4.github.io/lz4/'
+license=('GPL-2.0-or-later')
+makedepends=('git' 'meson' 'ninja')
+checkdepends=('diffutils')
+depends=('glibc')
+provides=('liblz4.so')
+source=("git+https://github.com/lz4/lz4.git")
+sha256sums=('SKIP')
+
+build() {
+  arch-meson --prefix=/usr --buildtype=plain lz4/build/meson build
+  /bin/meson.real configure build -Dcontrib=true -Dexamples=true -Dprograms=true
+  /bin/meson.real compile -C build
+}
+
+package() {
+  /bin/meson.real install -C build --destdir "$pkgdir"
+}

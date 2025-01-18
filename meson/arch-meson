@@ -1,0 +1,45 @@
+#!/bin/bash -ex
+# Highly opinionated wrapper for Arch Linux packaging
+
+CC=/usr/bin/clang
+CPP=/usr/bin/clang-cpp
+CXX=/usr/bin/clang++
+LD=lld
+CC_LD=lld
+CXX_LD=lld
+AR=llvm-ar
+NM=llvm-nm
+STRIP=llvm-strip
+OBJCOPY=llvm-objcopy
+OBJDUMP=llvm-objdump
+READELF=llvm-readelf
+RANLIB=llvm-ranlib
+HOSTCC=/usr/bin/clang
+HOSTCXX=/usr/bin/clang++
+HOSTAR=llvm-ar
+HOSTLD=lld
+LLVM_VERSION=21
+
+CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize"
+CFLAGS="$CPPFLAGS -O3 -flto -pthread -g1 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ffunction-sections -fdata-sections"
+CXXFLAGS="$CFLAGS"
+LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -flto -O3 -pthread"
+RUSTFLAGS=" -C link-dead-code=off -C opt-level=3 -C target-cpu=znver2 -C codegen-units=16 -C linker-plugin-lto -C panic=abort -C debuginfo=1 "
+DEBUG_CFLAGS="-fasynchronous-unwind-tables -g2"
+DEBUG_CXXFLAGS="$DEBUG_CFLAGS"
+DEBUG_RUSTFLAGS="-C debuginfo=2"
+
+exec /usr/bin/meson "$@" \
+    --reconfigure \
+    --optimization  3 \
+    --auto-features enabled \
+    -D              b_pie=true \
+    -D              b_staticpic=true \
+    -D              b_lto=true \
+    -D              python.bytecompile=2 \
+    -D              backend=ninja \
+    -D              b_colorout=always \
+    -D              c_args="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize -O3 -flto -pthread -fPIC -g1 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ffunction-sections" \
+    -D              c_link_args="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread" \
+    -D              cpp_args="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize" \
+    -D              cpp_link_args="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"

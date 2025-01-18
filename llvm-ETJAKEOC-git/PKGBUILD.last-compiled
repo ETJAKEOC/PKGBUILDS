@@ -1,0 +1,135 @@
+pkgbase=llvm-ETJAKEOC-git
+pkgname=(llvm-ETJAKEOC-git llvm-libs-minimal-git clang-minimal-git clang-libs-minimal-git clang-opencl-headers-minimal-git)
+pkgver=21.0.0_r542718.b8f122812e0a
+pkgrel=1
+arch=('x86_64')
+url="https://llvm.org/"
+license=('Apache-2.0 WITH LLVM-exception')
+makedepends=(git cmake libffi libedit ncurses libxml2
+             libxcrypt python python-setuptools zstd ninja)
+source=("git+https://github.com/llvm/llvm-project.git")
+sha512sums=('SKIP')
+options=(!lto !debug )
+export NINJAFLAGS="-j 24 -l 24"
+export LITFLAGS="-j 24"
+
+pkgver() {
+    cd llvm-project/cmake/Modules
+    local _pkgver=$(awk -F 'MAJOR |MINOR |PATCH |)' \
+            'BEGIN { ORS="." ; i=0 } \
+             /set\(LLVM_VERSION_/ { print $2 ; i++ ; if (i==2) ORS="" } \
+             END { print "\n" }' \
+             LLVMVersion.cmake)_r$(git rev-list --count HEAD).$(git rev-parse --short HEAD)
+    echo "${_pkgver}"
+}
+
+build() {
+  local cmake_args=(
+    -G Ninja
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX=/usr
+    -DCMAKE_C_COMPILER=clang
+    -DCMAKE_CXX_COMPILER=clang++
+    -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;ARM;AArch64;BPF;WebAssembly"
+    -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="DirectX;SPIRV"
+    -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;bolt;libclc"
+    -DLLVM_BUILD_LLVM_DYLIB=ON
+    -DLLVM_LINK_LLVM_DYLIB=ON
+    -DCLANG_LINK_CLANG_DYLIB=OFF
+    -DLLVM_ENABLE_FFI=ON
+    -DLLVM_ENABLE_RTTI=ON
+    -DLLVM_ENABLE_ASSERTIONS=OFF
+    -DLLVM_ENABLE_DUMP=FF
+    -DLLVM_USE_PERF=OFF
+    -DLLVM_CCACHE_BUILD=ON
+    -DLLVM_INSTALL_UTILS=ON
+    -DLLVM_USE_LINKER=lld
+    -DLLVM_ENABLE_ZLIB=ON
+    -DLLVM_ENABLE_ZSTD=ON
+    -DLLVM_INCLUDE_BENCHMARKS=OFF
+    -DLLVM_INCLUDE_EXAMPLES=OFF
+    -DLLVM_INCLUDE_TESTS=OFF
+    -DLLVM_INCLUDE_DOCS=OFF
+    -DLLVM_ENABLE_OCAMLDOC=OFF
+    -DLLVM_ENABLE_SPHINX=OFF
+    -DLLVM_ENABLE_DOXYGEN=OFF
+    -DLLVM_ENABLE_BINDINGS=OFF
+    -DLIBCLC_TARGETS_TO_BUILD="amdgcn--amdhsa;amdgcn--;amdgcn-mesa-mesa3d"
+    -DLIBCLC_AMDGPU_TARGETS_TO_BUILD="gfx803"
+    -DCMAKE_C_FLAGS="-march=znver2 -mtune=znver2 -O3 -pipe -fPIC"
+    -DCMAKE_CXX_FLAGS="-march=znver2 -mtune=znver2 -O3 -pipe -fPIC"
+    -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"
+    -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld"
+  )
+
+  unset LIBRARY_PATH
+  unset LD_LIBRARY_PATH
+
+  cmake -B _build -S "$srcdir/llvm-project/llvm" "${cmake_args[@]}" -Wno-dev
+  ninja $NINJAFLAGS -C _build
+}
+
+package_llvm-ETJAKEOC-git() {
+    pkgdesc="Collection of modular and reusable compiler and toolchain technologies, trimmed down git version"
+    depends=(llvm-libs-minimal-git="$pkgver-$pkgrel" zstd zlib glibc gcc-libs)
+    provides=('llvm' 'llvm-minimal-git')
+    conflicts=('llvm')
+    optdepends=('python: for using lit (LLVM Integrated Tester)'
+                          'python-setuptools: for using lit'
+    )
+
+    DESTDIR="$pkgdir" ninja $NINJAFLAGS -C _build install
+}
+
+package_llvm-libs-minimal-git() {
+    pkgdesc="LLVM runtime libraries, trimmed down trunk version"
+    depends=(gcc-libs zlib libffi libedit ncurses libxml2 zstd glibc)
+    cp --preserve --recursive "$srcdir"/llvm-libs/* "$pkgdir"/
+    install -Dm644 "$srcdir"/llvm-project/llvm/LICENSE.TXT "$pkgdir"/usr/share/licenses/$pkgname/LICENSE.TXT
+}
+
+_python_optimize() {
+  python -m compileall "$@"
+  python -O -m compileall "$@"
+  python -OO -m compileall "$@"
+}
+
+package_clang-minimal-git() {
+  pkgdesc='C language family frontend for LLVM (trimmed down git version)'
+  depends=(llvm-libs-minimal-git clang-libs-minimal-git gcc-libs glibc)
+  optdepends=('openmp: OpenMP support in clang with -fopenmp'
+              'python: for scan-view, scan-build, git-clang-format, clang-rename and python bindings'
+              'llvm-minimal-git: referenced by some clang headers')
+  conflicts=(compiler-rt clang)
+  provides=(compiler-rt clang clang-analyzer clang-tools-extra)
+    cp --preserve --recursive "$srcdir"/clang/* "$pkgdir"/
+    local site_packages=$(python -c "import site; print(site.getsitepackages()[0])")
+    install -d "$pkgdir/$site_packages"
+    mv "$pkgdir"/usr/lib/{libear,libscanbuild} "$pkgdir/$site_packages/"
+    sed -i 's|libexec|lib/clang|' \
+        "$pkgdir/usr/bin/scan-build" \
+        "$pkgdir/$site_packages/libscanbuild/analyze.py"
+    _python_optimize "$pkgdir"/usr/share "$pkgdir"/$site_packages
+    install -Dm644 "$srcdir"/llvm-project/compiler-rt/LICENSE.TXT "$pkgdir"/usr/share/licenses/$pkgname/compiler-rt-LICENSE.TXT
+    install -Dm644 "$srcdir"/llvm-project/clang-tools-extra/LICENSE.TXT "$pkgdir"/usr/share/licenses/$pkgname/clang-tools-extra-LICENSE.TXT
+    install -Dm644 "$srcdir"/llvm-project/clang/LICENSE.TXT "$pkgdir"/usr/share/licenses/$pkgname/clang-LICENSE.TXT
+}
+
+package_clang-libs-minimal-git() {
+    pkgdesc="clang runtime libraries, trunk version"
+    depends=(llvm-libs-minimal-git="$pkgver-$pkgrel" gcc-libs glibc)
+    provides=('clang-libs')
+    conflicts=("clang<$pkgver-$pkgrel" 'clang-libs')
+    cp --preserve --recursive "$srcdir"/clang-libs/* "$pkgdir"/
+    install -Dm644 "$srcdir"/llvm-project/llvm/LICENSE.TXT "$pkgdir"/usr/share/licenses/$pkgname/LICENSE.TXT
+}
+
+package_clang-opencl-headers-minimal-git() {
+    pkgdesc="clang headers & include files for OpenCL, trunk version"
+    depends=(clang-libs-minimal-git="$pkgver-$pkgrel")
+    arch=('any')
+    provides=('clang-opencl-headers')
+    conflicts=("clang<$pkgver-$pkgrel" 'clang-opencl-headers')
+    cp --preserve --recursive "$srcdir"/clang-opencl-headers/* "$pkgdir"/
+    install -Dm644 "$srcdir"/llvm-project/llvm/LICENSE.TXT "$pkgdir"/usr/share/licenses/$pkgname/LICENSE.TXT
+}

@@ -1,0 +1,53 @@
+_vkprefix=Vulkan-Tools-vulkan-sdk
+pkgname=lib32-vulkan-tools
+pkgver=1.4.313.0
+pkgrel=1
+arch=(x86_64)
+url="https://www.khronos.org/vulkan/"
+pkgdesc="Vulkan Utilities and Tools (32-bit)"
+license=('Apache-2.0')
+depends=('lib32-libx11' 'lib32-libxcb' 'lib32-wayland' 'lib32-vulkan-icd-loader')
+makedepends=('cmake' 'python' 'vulkan-headers' 'wayland-protocols' 'glslang' 'spirv-tools' 'git' 'volk')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/KhronosGroup/Vulkan-Tools/archive/vulkan-sdk-${pkgver}.tar.gz")
+sha256sums=('6b88045c8cad7bd042e202826d8b597c657b9a422ca1f89fc3b0ab2dd64c5a0f')
+
+prepare() {
+  cd "${_vkprefix}-${pkgver}"
+  sed -i \
+    's@find_package(volk QUIET REQUIRED CONFIG)@set(CMAKE_SIZEOF_VOID_P 8)\nfind_package(volk QUIET REQUIRED CONFIG)\nset(CMAKE_SIZEOF_VOID_P 4)@' \
+    CMakeLists.txt
+  sed -i 's/VK_IMAGE_USAGE_TILE_MEMORY_QCOM/VK_IMAGE_USAGE_TILE_MEMORY_BIT_QCOM/' \
+    "${srcdir}/${_vkprefix}-${pkgver}/vulkaninfo/generated/vulkaninfo.hpp"
+}
+
+build() {
+  source /etc/environment
+  export CFLAGS="-m32 ${CFLAGS}"
+  export CXXFLAGS="-m32 ${CXXFLAGS}"
+  export PKG_CONFIG_PATH="/usr/lib32/pkgconfig"
+
+  cmake -S "${_vkprefix}-${pkgver}" -B build --fresh \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_SYSCONFDIR=/etc \
+    -DCMAKE_INSTALL_DATADIR=/usr/share \
+    -DCMAKE_SKIP_RPATH=True \
+    -DBUILD_WSI_XCB_SUPPORT=On \
+    -DBUILD_WSI_XLIB_SUPPORT=On \
+    -DBUILD_WSI_WAYLAND_SUPPORT=On \
+    -DBUILD_CUBE=ON \
+    -DBUILD_VULKANINFO=ON \
+    -DBUILD_ICD=OFF \
+    -DCMAKE_BUILD_TYPE=Release
+  cmake --build build
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build
+
+  for i in "${pkgdir}/usr/bin/"*; do
+    mv "$i" "$i"32
+  done
+
+  install -dm755 "${pkgdir}/usr/share/licenses/${pkgname}"
+  install -m644 "${_vkprefix}-${pkgver}/LICENSE.txt" "${pkgdir}/usr/share/licenses/${pkgname}"
+}

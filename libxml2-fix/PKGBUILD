@@ -1,0 +1,32 @@
+pkgname=libxml2-legacy
+pkgver=2.9.14
+pkgrel=1
+pkgdesc="Legacy version of libxml2 (2.9.x) with libxml2.so.2 and symbol versions, because Arch is retarded like this"
+arch=('x86_64')
+url="http://xmlsoft.org"
+license=('MIT')
+depends=()
+source=("https://download.gnome.org/sources/libxml2/${pkgver%.*}/libxml2-$pkgver.tar.xz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/libxml2-$pkgver"
+  ./configure \
+    --prefix=/opt/libxml2-2.9 \
+    --disable-static \
+    --with-history \
+    --with-lzma \
+    --with-python=no \
+    --enable-shared \
+    --with-version-info=2:9:0
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make -j20 LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd "$srcdir/libxml2-$pkgver"
+  make DESTDIR="$pkgdir" install
+
+  # Symlink so you can LD_PRELOAD or LD_LIBRARY_PATH it easily
+  mkdir -p "$pkgdir/opt/libxml2-2.9/lib"
+  ln -sf libxml2.so.2 "$pkgdir/opt/libxml2-2.9/lib/libxml2.so"
+}

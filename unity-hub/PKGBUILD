@@ -1,0 +1,24 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=unityhub-appimage
+pkgver=3.7.0
+pkgrel=1
+pkgdesc="Unity Hub as an AppImage - manage your Unity projects and installs"
+arch=('x86_64')
+url="https://unity3d.com/get-unity/download"
+license=('custom')
+depends=('fuse2')
+options=(!strip)
+source=("UnityHub.AppImage::https://public-cdn.cloud.unity3d.com/hub/prod/UnityHub.AppImage"
+        "unityhub.desktop")
+sha256sums=('SKIP' 'SKIP')
+
+prepare() {
+  chmod +x "$srcdir/UnityHub.AppImage"
+}
+
+package() {
+  install -Dm755 "$srcdir/UnityHub.AppImage" "$pkgdir/opt/unityhub/UnityHub.AppImage"
+  install -d "$pkgdir/usr/bin"
+  ln -s /opt/unityhub/UnityHub.AppImage "$pkgdir/usr/bin/unityhub"
+  install -Dm644 "$srcdir/unityhub.desktop" "$pkgdir/usr/share/applications/unityhub.desktop"
+}
