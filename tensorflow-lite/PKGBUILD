@@ -1,0 +1,104 @@
+pkgname=tensorflow-lite
+pkgver=2.12.0
+pkgrel=1
+pkgdesc="Lightweight solution for mobile & embedded devices (TensorFlow Lite)"
+arch=('x86_64')
+url="https://www.tensorflow.org/lite/"
+license=('Apache')
+depends=('abseil-cpp')
+makedepends=(
+  'bazel'            # for the actual build
+  'clang'            # your chosen compiler
+  'llvm'             # for lld, llvm-ar, etc.
+  'python'           # configure script
+  'git'
+)
+options=('!emptydirs')
+source=("git+https://github.com/tensorflow/tensorflow.git")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$srcdir/tensorflow"
+  git submodule update --init --depth 1
+  sed -i '/fno-canonical-system-headers/d' "$srcdir/tensorflow/.bazelrc"
+}
+
+build() {
+  cd "$srcdir/tensorflow"
+  source /etc/environment
+
+  export PYTHON_BIN_PATH=$(which python)
+  export PYTHON_LIB_PATH="$(python -c 'import site; print(site.getsitepackages()[0])')"
+  export TF_ENABLE_XLA=1
+  export TF_NEED_CUDA=0
+  export TF_NEED_ROCM=1
+  export TF_DOWNLOAD_CLANG=0
+  export CLANG_COMPILER_PATH=$CC
+  export CC=$CC
+  export CXX=$CXX
+  export CC_OPT_FLAGS="$CFLAGS -DEIGEN_MPL2_ONLY"
+  export BAZEL_COMPILER=$CC
+  export TF_CUDA_CLANG=0
+  export TF_SET_ANDROID_WORKSPACE=0
+  export TF_CONFIGURE_IOS=0
+
+  yes "" | ./configure
+
+  # Bazel env vars and flags
+  BZL_ENV=(--action_env="PYTHON_BIN_PATH=$PYTHON_BIN_PATH" \
+           --action_env="PYTHON_LIB_PATH=$PYTHON_LIB_PATH" \
+           --action_env="CC=$CC" \
+           --action_env="CXX=$CXX" \
+           --action_env="AR=$AR" \
+           --action_env="NM=$NM" \
+           --action_env="STRIP=$STRIP" \
+           --action_env="CPPFLAGS=$CPPFLAGS" \
+           --action_env="CFLAGS=$CFLAGS" \
+           --action_env="CXXFLAGS=$CXXFLAGS" \
+           --action_env="LDFLAGS=$LDFLAGS" \
+           --repo_env="BAZEL_COMPILER=$BAZEL_COMPILER")
+
+  BZL_OPTS=(--config=opt
+            --copt=-march=znver2
+            --copt=-O3
+            --copt=-funroll-loops
+            --copt=-ffast-math
+            --copt=-fPIC
+            --copt=-DEIGEN_MPL2_ONLY
+            --cxxopt=-march=znver2
+            --cxxopt=-O3
+            --cxxopt=-flto
+            --cxxopt=-fno-exceptions
+            --linkopt=-fuse-ld=lld
+            --linkopt=-flto
+            --linkopt=-fPIC
+	    --linkopt=-Wl,--thinlto-jobs=all
+	    --cxxopt=-fvisibility=hidden
+            --host_cxxopt=-march=znver2
+            --host_cxxopt=-O3
+            --host_cxxopt=-flto
+            --host_cxxopt=-fno-exceptions
+            --define=with_xla_support=true
+            --define=dynamic_loaded_kernels=true
+            --config=dynamic_kernels
+	    --crosstool_top=@local_config_cc//:toolchain
+#	    --compiler=clang
+            --verbose_failures)
+
+  bazel build \
+    "${BZL_ENV[@]}" \
+    "${BZL_OPTS[@]}" \
+    //tensorflow/lite:libtensorflowlite.so
+}
+
+package() {
+  cd "$srcdir/tensorflow"
+
+  # copy the .so and headers
+  install -Dm755 \
+    bazel-bin/tensorflow/lite/libtensorflowlite.so \
+    "$pkgdir"/usr/lib/libtensorflowlite.so
+
+  # strip any leftover debug symbols
+  strip --strip-unneeded "$pkgdir"/usr/lib/libtensorflowlite.so
+}

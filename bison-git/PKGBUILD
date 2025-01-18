@@ -1,0 +1,42 @@
+pkgname=bison-git
+pkgver=3.8.2.r46.g97852f39
+pkgrel=1
+pkgdesc="The GNU general-purpose parser generator"
+arch=('i686' 'x86_64')
+url="https://www.gnu.org/software/bison/bison.html"
+license=('GPL3')
+depends=('glibc')
+makedepends=('git' 'gperf' 'gzip' 'help2man' 'rsync' 'tar' 'wget')
+provides=("bison=$pkgver")
+conflicts=('bison')
+source=("git+https://git.savannah.gnu.org/git/bison.git")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "bison"
+  git submodule update --init --recursive
+}
+
+pkgver() {
+  cd "bison"
+  git describe --long --tags | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+  cd "bison"
+  export LINGUAS="en"
+  ./bootstrap
+  export LINGUAS="en"
+  ./configure -C --prefix=/usr --datadir=/usr/share --enable-lto=true --enable-llvm=true --enable-threads=isox+posix --disable-assert --enable-dependency-tracking CC=clang CPP=clang-cpp CXX=clang++ \
+  CPPFLAGS="-march=znver2 -mtune=znver2 -pipe" \
+  CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden" \
+  CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden" \
+  LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
+  export LINGUAS="en"
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make -j20 LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd "bison"
+  make DESTDIR="$pkgdir" install
+}

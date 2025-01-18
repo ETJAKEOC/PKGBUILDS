@@ -1,0 +1,89 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=nodejs
+pkgver=24.0.0
+pkgrel=1
+pkgdesc='Evented I/O for V8 javascript ("Current" release)'
+arch=('x86_64')
+url='https://nodejs.org/'
+license=('MIT')
+depends=('brotli' 'c-ares' 'icu' 'libnghttp2' 'libnghttp3' 'libngtcp2'
+  'libuv' 'openssl' 'simdjson' 'zlib')
+makedepends=('git' 'procps-ng' 'python')
+optdepends=('npm: nodejs package manager')
+source=("git+https://github.com/nodejs/node.git")
+sha512sums=('SKIP')
+
+
+build() {
+  cd node
+
+  ./configure \
+    --prefix=/usr \
+    --with-intl=system-icu \
+    --shared-brotli \
+    --shared-cares \
+    --shared-libuv \
+    --shared-nghttp2 \
+    --shared-nghttp3 \
+    --shared-ngtcp2 \
+    --shared-openssl \
+    --shared-simdjson \
+    --shared-zlib
+
+  export MAKEFLAGS="-j20"
+  export CPPFLAGS=" -march=znver2 -mtune=znver2 -pipe "
+  export CFLAGS=" $CPPFLAGS -O3 -flto -pthread -fPIC -g0 "
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS=" -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread "
+  export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+  export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+  export CC=clang
+  export CXX=clang++
+  export CPP=clang-cpp
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make $MAKEFLAGS LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  export MAKEFLAGS="-j20"
+  export CPPFLAGS=" -march=znver2 -mtune=znver2 -pipe "
+  export CFLAGS=" $CPPFLAGS -O3 -flto -pthread -fPIC -g0 "
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS=" -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread "
+  export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+  export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+  export CC=clang
+  export CXX=clang++
+  export CPP=clang-cpp
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+  cd node
+  make DESTDIR="$pkgdir" install
+  install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/nodejs/
+}

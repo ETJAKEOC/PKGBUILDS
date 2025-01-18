@@ -1,0 +1,28 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=android-simg2img
+pkgver=1.1.5
+pkgrel=1
+pkgdesc="A simple tool to convert Android sparse images to raw images"
+arch=('x86_64')
+url="https://github.com/anestisb/android-simg2img"
+license=('Apache')
+depends=('gcc' 'make')
+makedepends=('git')
+source=("git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/$pkgname"
+  git describe --tags --abbrev=0 | sed 's/^v//'
+}
+
+build() {
+  cd "$srcdir/$pkgname"
+  make LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+  install -Dm755 simg2img "$pkgdir/usr/bin/simg2img"
+  install -Dm755 img2simg "$pkgdir/usr/bin/img2simg"
+}

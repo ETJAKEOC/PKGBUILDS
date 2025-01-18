@@ -1,0 +1,95 @@
+pkgname=mcpelauncher-ETJAKEOC
+pkgver=1.3.0.r9.g1155504
+pkgrel=1
+pkgdesc="Minecraft PE launcher for Linux"
+arch=('x86_64')
+url="https://github.com/minecraft-linux/mcpelauncher-manifest"
+license=('GPL')
+depends=('sdl2' 'mcpelauncher-ui')
+makedepends=('clang' 'llvm' 'lld' 'cmake' 'rust' 'git' 'fakeroot')
+source=('git+https://github.com/minecraft-linux/mcpelauncher-manifest.git')
+sha256sums=('SKIP')
+
+pkgver() {
+  cd ${srcdir}/mcpelauncher-manifest
+  _tag=$(git tag -l --sort -v:refname | grep -E '^v?[0-9\.]+$' | head -n1)
+  _rev=$(git rev-list --count $_tag..HEAD)
+  _hash=$(git rev-parse --short HEAD)
+  printf "%s.r%s.g%s" "$_tag" "$_rev" "$_hash" | sed 's/^v//'
+}
+
+prepare() {
+	cd "$srcdir/mcpelauncher-manifest"
+	git submodule deinit -f linux-gamepad
+	git rm -f linux-gamepad
+	rm -rf .git/modules/linux-gamepad
+	sed -i '/linux-gamepad/d' .gitmodules
+        _git() {
+           git clone --depth 1 --recurse-submodules "$@"
+        }
+	_git https://github.com/minecraft-linux/android-support-headers.git
+	_git https://github.com/minecraft-linux/arg-parser.git
+	_git https://github.com/minecraft-linux/base64.git
+	_git https://github.com/minecraft-linux/cll-telemetry.git
+	_git https://github.com/minecraft-linux/daemon-utils.git
+	_git https://github.com/minecraft-linux/eglut.git
+	_git https://github.com/minecraft-linux/epoll-shim.git
+	_git https://github.com/minecraft-linux/file-picker.git
+	_git https://github.com/minecraft-linux/file-util.git
+	_git https://github.com/minecraft-linux/game-window.git
+	_git https://github.com/ocornut/imgui.git
+	_git https://github.com/minecraft-linux/libc-shim.git
+	_git https://github.com/ChristopherHX/libjnivm.git
+	_git https://github.com/minecraft-linux/logger.git
+	_git https://github.com/minecraft-linux/mcpelauncher-client.git
+	_git https://github.com/minecraft-linux/mcpelauncher-common.git
+	_git https://github.com/minecraft-linux/mcpelauncher-core.git
+	_git https://github.com/minecraft-linux/mcpelauncher-errorwindow.git
+	_git https://github.com/minecraft-linux/mcpelauncher-linker.git
+	_git https://github.com/minecraft-linux/mcpelauncher-linux-bin.git
+	_git https://github.com/minecraft-linux/mcpelauncher-mac-bin.git
+	_git https://github.com/freundTech/mcpelauncher-webview.git
+	_git https://github.com/minecraft-linux/minecraft-imported-symbols.git
+	_git https://github.com/minecraft-linux/msa-daemon-client.git
+	_git https://github.com/minecraft-linux/osx-elf-header.git
+	_git https://github.com/minecraft-linux/properties-parser.git
+	_git https://github.com/libsdl-org/SDL.git sdl3
+	_git https://github.com/minecraft-linux/simple-ipc.git
+}
+
+build() {
+	cd "$srcdir/mcpelauncher-manifest"
+	mkdir -p build && cd build
+
+	export CC=/usr/bin/clang
+	export CPP=/usr/bin/clang-cpp
+	export CXX=/usr/bin/clang++
+	export LD=lld
+	export CC_LD=lld
+	export CXX_LD=lld
+	export AR=llvm-ar
+	export NM=llvm-nm
+	export STRIP=llvm-strip
+	export OBJCOPY=llvm-objcopy
+	export OBJDUMP=llvm-objdump
+	export READELF=llvm-readelf
+	export RANLIB=llvm-ranlib
+	export HOSTCC=/usr/bin/clang
+	export HOSTCXX=/usr/bin/clang++
+	export HOSTAR=llvm-ar
+	export HOSTLD=lld
+
+	export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize"
+	export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections"
+	export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections"
+	export LDFLAGS=""
+
+	cmake .. -Wno-dev -DCMAKE_BUILD_TYPE=Release -DJNI_USE_JNIVM=ON -DGAMEWINDOW_SYSTEM=SDL3 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+	CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make -j20 LLVM=1 LLVM_IAS=1
+}
+
+package() {
+	cd "$srcdir/mcpelauncher-manifest/build"
+	make install DESTDIR="$pkgdir"
+}

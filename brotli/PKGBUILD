@@ -1,0 +1,91 @@
+pkgbase=brotli
+pkgname=('brotli' 'python-brotli' 'brotli-testdata')
+_gitcommit=ed738e842d2fbdf2d6459e39267a633c4a9b2f5d
+pkgver=1.1.0.r122.g440e036
+pkgrel=1
+pkgdesc='Generic-purpose lossless compression algorithm'
+url='https://github.com/google/brotli'
+arch=('x86_64')
+license=('MIT')
+makedepends=(
+  git
+  cmake
+  python-setuptools
+  python-build
+  python-installer
+  python-wheel
+)
+source=(${pkgname}::"git+${url}.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd ${pkgbase}
+  git describe --tags --match 'v*' | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+  cd ${pkgbase}
+
+  export CC=clang
+  export CXX=clang++
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export RANLIB=llvm-ranlib
+  export STRIP=llvm-strip
+  export LD=lld
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -ffunction-sections -fdata-sections"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -ffunction-sections -fdata-sections"
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
+
+  python -m build --wheel --no-isolation
+
+  cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_AR=llvm-ar \
+    -DCMAKE_NM=llvm-nm \
+    -DCMAKE_RANLIB=llvm-ranlib \
+    -DCMAKE_STRIP=llvm-strip \
+    -DCMAKE_LINKER=lld \
+    -DCMAKE_C_FLAGS="${CFLAGS} -ffat-lto-objects" \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS} -ffat-lto-objects" \
+    -DCMAKE_EXE_LINKER_FLAGS="${LDFLAGS}" \
+    -DCMAKE_SHARED_LINKER_FLAGS="${LDFLAGS}" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DBUILD_SHARED_LIBS=True
+  cmake --build build -v
+}
+
+package_brotli() {
+  depends=('glibc')
+  provides=(libbrotlicommon.so libbrotlidec.so libbrotlienc.so)
+
+  cd ${pkgbase}
+  DESTDIR="$pkgdir" cmake --install build
+  local man
+  for man in docs/*.?; do
+    install -Dm 644 "$man" "$pkgdir/usr/share/man/man${man##*.}/${man##*/}"
+  done
+  install -Dm 644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}
+
+package_python-brotli() {
+  pkgdesc+=' - python library'
+  depends=('python')
+
+  cd ${pkgbase}
+  python -m installer --destdir="$pkgdir" dist/*.whl
+  install -Dm 644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}
+
+package_brotli-testdata() {
+  pkgdesc+=' - test data'
+  depends=()
+
+  cd ${pkgbase}
+  install -dm755 "$pkgdir"/usr/share/brotli
+  cp -a tests/testdata "$pkgdir"/usr/share/brotli/
+  install -Dm 644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+}

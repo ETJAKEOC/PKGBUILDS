@@ -1,0 +1,320 @@
+pkgbase=qemu-git
+_gitname=qemu
+pkgname=(
+  qemu-git
+  qemu-arch-extra-git
+  qemu-block-{iscsi,gluster}-git
+  qemu-guest-agent-git
+)
+pkgdesc="A generic and open source machine emulator and virtualizer. Git version."
+pkgver=10.0.0.r1610.gd9ce74873a
+pkgrel=1
+epoch=25
+arch=(i686 x86_64)
+license=(GPL-2.0-or-later LGPL-2.1-or-later)
+url="https://wiki.qemu.org/"
+# TODO: consider providing rdma-core
+# TODO: consider providing lzfse
+makedepends=(
+  alsa-lib
+  brltty
+  bzip2
+  cairo
+  curl
+  cdrtools
+  dtc
+  fuse3
+  gcc-libs
+  gdk-pixbuf2
+  git
+  glib2
+  glusterfs
+  gnutls
+  gtk3
+  jack
+  libaio
+  libbpf
+  libcacard
+  libcap-ng
+  libepoxy
+  libiscsi
+  libnfs
+  libpng
+  libpulse
+  libsasl
+  libseccomp
+  libslirp
+  libssh
+  libvirt
+  liburing
+  libusb
+  libx11
+  libxkbcommon
+  lzo
+  mesa
+  meson
+  ncurses
+  ndctl
+  numactl
+  pam
+  pixman
+  python
+  python-sphinx
+  python-sphinx_rtd_theme
+  rdma-core
+  sdl2
+  sdl2_image
+  seabios
+  snappy
+  spice-protocol
+  spice
+  systemd
+  usbredir
+  vde2
+  virglrenderer
+  vte3 libvte-2.91.so
+  xfsprogs
+  zlib
+  zstd 
+)
+options=(!debug)
+source=(git+https://gitlab.com/qemu-project/qemu.git
+        qemu-guest-agent.service
+        65-kvm.rules)
+sha256sums=('SKIP'
+            'c39bcde4a09165e64419fd2033b3532378bba84d509d39e2d51694d44c1f8d88'
+            'a66f0e791b16b03b91049aac61a25950d93e962e1b2ba64a38c6ad7f609b532c')
+
+_corearch=x86_64
+
+pkgver() {
+  cd "${srcdir}/${_gitname}"
+  git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g' | cut -c2-47
+}
+
+prepare() {
+  cd "${srcdir}/${_gitname}"
+  mkdir build
+}
+
+build() (
+  cd "${srcdir}/${_gitname}"
+  cd build
+
+  export CC=clang
+  export CXX=clang++
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto"
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -flto -fuse-ld=lld -fPIC -pthread -Wl,--export-dynamic"
+
+../configure \
+  --prefix=/usr \
+  --sysconfdir=/etc \
+  --localstatedir=/var \
+  --libexecdir=/usr/lib/qemu \
+  --smbd=/usr/bin/smbd \
+  --cc=clang \
+  --cxx=clang++ \
+  --enable-modules \
+  --enable-guest-agent \
+  --enable-sdl \
+  --disable-werror \
+  --enable-strip \
+  --enable-gtk \
+  --enable-virtfs \
+  --enable-vhost-user \
+  --enable-vhost-net \
+  --enable-spice \
+  --enable-opengl \
+  --enable-user \
+  --enable-virglrenderer \
+  --enable-kvm \
+  --enable-lto \
+  --enable-cap-ng \
+  --target-list=x86_64-softmmu,aarch64-softmmu,x86_64-linux-user \
+  --audio-drv-list=pipewire,pa \
+  --extra-cflags="${CFLAGS}" \
+  --extra-ldflags="${LDFLAGS}"
+
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make -j20 LLVM=1 LLVM_IAS=1
+)
+
+package_qemu-git() {
+  pkgdesc="QEMU Git version."
+  depends=(
+    alsa-lib libasound.so
+    bzip2 libbz2.so
+    cairo
+    capstone
+    curl libcurl.so
+    dtc
+    fuse3
+    gcc-libs
+    gdk-pixbuf2 libgdk_pixbuf-2.0.so
+    glib2 libgio-2.0.so libglib-2.0.so libgmodule-2.0.so libgobject-2.0.so
+    gnutls
+    gtk3 libgdk-3.so libgtk-3.so
+    jack libjack.so
+    libaio
+    libbpf libbpf.so
+    libcacard
+    libcap-ng libcap-ng.so
+    libepoxy
+    libjpeg libjpeg.so
+    libnfs
+    libpng
+    libpulse libpulse.so
+    libsasl
+    libseccomp libseccomp.so
+    libslirp libslirp.so
+    libssh libssh.so
+    libusb libusb-1.0.so
+    liburing liburing.so
+    libx11
+    libxdp
+    libxkbcommon libxkbcommon.so
+    lzo
+    mesa
+    ncurses libncursesw.so
+    ndctl
+    numactl libnuma.so
+    pam libpam.so
+    pixman libpixman-1.so
+    seabios
+    sdl2
+    sdl2_image
+    snappy
+    spice libspice-server.so
+    systemd-libs libudev.so
+    usbredir
+    virglrenderer
+    vde2
+    vte3 libvte-2.91.so
+    zlib
+    zstd libzstd.so
+  )
+  optdepends=(
+    'brltty: for braille device support'
+    'qemu-arch-extra-git: extra architectures support'
+  )
+  conflicts=('qemu-headless' 'qemu' 'qemu-desktop')
+  provides=('qemu-headless' 'qemu')
+
+  _package full
+}
+
+_package() {
+  optdepends+=('ovmf: Tianocore UEFI firmware for qemu'
+               'samba: SMB/CIFS server support'
+               'qemu-block-iscsi-git: iSCSI block support'
+               'qemu-block-gluster-git: glusterfs block support')
+  install=qemu.install
+  options=(!strip !emptydirs)
+
+  make -C "${srcdir}/${_gitname}/build" DESTDIR="$pkgdir" install "${@:2}"
+
+  install -Dm644 65-kvm.rules "$pkgdir/usr/lib/udev/rules.d/65-kvm.rules"
+  rm -r "$pkgdir/var"
+
+  cd "$pkgdir/usr/lib"
+  chmod u+s qemu/qemu-bridge-helper
+
+cd ../bin
+install -d "$srcdir/$_gitname/extra-arch/usr/bin"
+for _bin in qemu-*; do
+  [[ -f $_bin ]] || continue
+
+  case ${_bin#qemu-} in
+    ga) rm "$_bin" ;;
+    edid|img|io|keymap|nbd|pr-helper|storage-daemon) ;;
+    system-${_corearch}) ;;
+    *) mv "$_bin" "$srcdir/$_gitname/extra-arch/usr/bin" ;;
+  esac
+done
+
+cd ../share/qemu
+install -d "$srcdir/$_gitname/extra-arch/usr/share/qemu"
+for _blob in *; do
+  [[ -f $_blob ]] || continue
+
+  case $_blob in
+    bios*.bin|vgabios*.bin|edk2-*|trace-events*|firmware) rm -f "$_blob" ;;
+    efi-*|pxe-*|kvmvapic.bin|linuxboot*|multiboot.bin|sgabios.bin) ;;
+    *) mv "$_blob" "$srcdir/$_gitname/extra-arch/usr/share/qemu" ;;
+  esac
+done
+
+  rm -rf firmware
+  cd ..
+}
+
+package_qemu-arch-extra-git() {
+  pkgdesc="QEMU for foreign architectures. Git version."
+  depends=(
+    dtc
+    fuse3
+    gcc-libs
+    gnutls
+    libaio
+    libbpf libbpf.so
+    glib2 libgio-2.0.so libglib-2.0.so libgobject-2.0.so libgmodule-2.0.so
+    libjpeg libjpeg.so
+    libpng
+    libsasl
+    libseccomp libseccomp.so
+    libslirp libslirp.so
+    liburing liburing.so
+    lzo
+    ndctl
+    numactl libnuma.so
+    pam libpam.so
+    pixman libpixman-1.so
+    snappy
+    systemd-libs
+    libudev.so
+    qemu-git
+    vde2
+    zlib
+    zstd
+    libzstd.so
+  )
+  optdepends=(
+    'edk2-armvirt: for aarch64 UEFI support'
+    'edk2-ovmf: for ia32 and x64 UEFI support'
+  )
+  options=(!strip)
+  provides=(qemu-arch-extra)
+  conflicts=(qemu-arch-extra qemu-emulators-full)
+
+  mv -v "$srcdir/$_gitname/extra-arch/usr" "$pkgdir"
+}
+
+package_qemu-block-iscsi-git() {
+  pkgdesc="QEMU iSCSI block module. Git version."
+  depends=(glibc libiscsi)
+  conflicts=(qemu-block-iscsi)
+  provides=(qemu-block-iscsi)
+
+  install -vDm 755 "$srcdir/$_gitname/build/block-iscsi.so" -t "$pkgdir/usr/lib/qemu/"
+}
+
+package_qemu-block-gluster-git() {
+  pkgdesc="QEMU GlusterFS block module. Git version."
+  depends=(glibc glusterfs)
+  conflicts=(qemu-block-gluster)
+  provides=(qemu-block-gluster)
+
+  install -vDm 755 "$srcdir/$_gitname/build/block-gluster.so" -t "$pkgdir/usr/lib/qemu/"
+}
+
+package_qemu-guest-agent-git() {
+  pkgdesc="QEMU Guest Agent. Git version."
+  depends=(gcc-libs glib2 libudev.so liburing)
+  conflicts=(qemu-guest-agent)
+  provides=(qemu-guest-agent)
+  install=qemu-guest-agent.install
+
+  install -vDm 755 "$srcdir/$_gitname/build/qga/qemu-ga" -t "$pkgdir/usr/bin/"
+  install -vDm 644 "$srcdir/qemu-guest-agent.service" -t "$pkgdir/usr/lib/systemd/system/"
+  install -vDm 755 "$srcdir/$_gitname/scripts/qemu-guest-agent/fsfreeze-hook" -t "$pkgdir/etc/qemu/"
+}
