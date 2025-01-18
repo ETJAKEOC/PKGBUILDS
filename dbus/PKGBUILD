@@ -1,0 +1,96 @@
+pkgbase=dbus
+pkgname=(dbus dbus-daemon-units dbus-docs)
+pkgver=1.16.2
+pkgrel=1
+pkgdesc="Freedesktop.org message bus system"
+url="https://gitlab.freedesktop.org/dbus/dbus"
+arch=(x86_64)
+license=("AFL-2.1 OR GPL-2.0-or-later")
+depends=(audit expat glibc libcap-ng systemd-libs)
+makedepends=(docbook-xsl doxygen git glib2 mallard-ducktype
+  meson python qt5-tools systemd xmlto yelp-tools)
+source=("git+${url}.git" 0001-Arch-Linux-tweaks.patch dbus-reload.hook)
+b2sums=('SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+  cd dbus
+  patch -Np1 -i ../0001-Arch-Linux-tweaks.patch
+}
+
+build() {
+  export CC=clang
+  export CXX=clang++
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export RANLIB=llvm-ranlib
+  export STRIP=llvm-strip
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden"
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
+
+  local meson_options=(
+    -Dprefix=/usr
+    -Ddefault_library=both
+    -Ddebug=false
+    -Dstrip=true
+    -D apparmor=disabled
+    -D dbus_user=dbus
+    -D kqueue=disabled
+    -D launchd=disabled
+    -D relocation=disabled
+    -D selinux=disabled
+    -D x11_autolaunch=disabled
+  )
+
+  arch-meson dbus build "${meson_options[@]}"
+  /bin/meson.real compile -C build
+}
+
+_pick() {
+  local p="$1" f d; shift
+  for f; do
+    d="$srcdir/$p/${f#$pkgdir/}"
+    mkdir -p "$(dirname "$d")"
+    mv "$f" "$d"
+    rmdir -p --ignore-fail-on-non-empty "$(dirname "$f")"
+  done
+}
+
+package_dbus() {
+  depends+=(libaudit.so libcap-ng.so libexpat.so libsystemd.so)
+  provides=(libdbus libdbus-1.so)
+  conflicts=(libdbus)
+  replaces=(libdbus)
+
+  /bin/meson.real install -C build --destdir "$pkgdir"
+
+  _pick unit "$pkgdir"/usr/lib/systemd/{system,user}/dbus.service
+  _pick docs "$pkgdir"/usr/share/doc
+
+  install -Dt "$pkgdir/usr/share/libalpm/hooks" -m644 *.hook
+
+  install -Dt "$pkgdir/usr/share/licenses/$pkgname" -m644 \
+    dbus/COPYING dbus/LICENSES/AFL-2.1.txt
+}
+
+package_dbus-daemon-units() {
+  pkgdesc+=" - Service units"
+  depends=(dbus)
+  provides=(dbus-units)
+  conflicts=(dbus-broker-units)
+
+  mv unit/* "$pkgdir"
+
+  mkdir -p "$pkgdir/usr/share/licenses"
+  ln -s dbus "$pkgdir/usr/share/licenses/$pkgname"
+}
+
+package_dbus-docs() {
+  pkgdesc+=" - Documentation"
+
+  mv docs/* "$pkgdir"
+
+  install -Dt "$pkgdir/usr/share/licenses/$pkgname" -m644 \
+    dbus/COPYING dbus/LICENSES/AFL-2.1.txt
+}

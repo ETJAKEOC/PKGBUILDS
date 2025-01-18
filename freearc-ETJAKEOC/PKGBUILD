@@ -1,0 +1,36 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=freearc-native
+pkgver=0.67
+pkgrel=1
+pkgdesc="Native rebuild of FreeArc from source with patched build flags and working Haskell toolchain"
+arch=('x86_64')
+url="https://github.com/svn2github/freearc.git"
+license=('LGPL2')
+depends=('ghc7.10-bin' 'cabal-install2' 'haskell-hsc2hs' 'gcc' 'make' 'zlib' 'p7zip')
+makedepends=('git' 'sed' 'patch')
+source=(FreeArc::git+${url})
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/FreeArc"
+
+  echo "Patching build flags..."
+  find . -type f -name makefile -o -name '*.cmd' -o -name '*.BAT' | while read -r file; do
+    sed -i 's/-march=i486/-march=znver2/g' "$file"
+    sed -i 's/-mtune=pentiumpro/-mtune=znver2/g' "$file"
+  done
+
+  make clean || true
+  export PATH="$HOME/.ghcup/bin:/opt/ghc/7.10.3/bin:/opt/cabal/2.0.1.1/bin:$PATH"
+  export GHC="$(which ghc)"
+  export CABAL="$(which cabal)"
+
+  chmod +x ./compile*
+  ./compile
+}
+
+package() {
+  cd "$srcdir/FreeArc"
+
+  install -Dm755 arc "$pkgdir/usr/bin/freearc"
+}

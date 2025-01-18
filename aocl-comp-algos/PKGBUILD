@@ -1,0 +1,150 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=aocl-compression-suite
+pkgver=1.0
+pkgrel=1
+pkgdesc="AMD AOCL Compression Library + Optimized Compression Utilities (zstd, xz, gzip, lz4, lzo) built with Clang/LTO/znver2"
+arch=('x86_64')
+url="https://developer.amd.com/aocl"
+license=('custom')
+depends=('glibc')
+makedepends=('clang' 'llvm' 'cmake' 'ninja' 'autoconf' 'automake' 'libtool' 'm4')
+options=(!strip !buildflags)
+source=(
+  "https://github.com/amd/aocl-compression/archive/refs/tags/5.1.tar.gz"
+  "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.zst"
+  "https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.xz"
+  "https://ftp.gnu.org/gnu/gzip/gzip-1.13.tar.gz"
+  "http://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz"
+  "https://github.com/lz4/lz4/archive/refs/tags/v1.10.0.tar.gz"
+  "https://zlib.net/pigz/pigz-2.8.tar.gz"
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+build() {
+  export CC=/usr/bin/clang
+  export CXX=/usr/bin/clang++
+  export LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections"
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
+
+  #### 1. Build AOCL Compress ####
+  echo ":: Building AOCL-Compress..."
+  cmake -S "$srcdir/aocl-compression-5.1" -B "$srcdir/aocl-build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_AR=llvm-ar \
+    -DCMAKE_NM=llvm-nm \
+    -DCMAKE_RANLIB=llvm-ranlib \
+    -DCMAKE_STRIP=llvm-strip \
+    -DCMAKE_LINKER=lld \
+    -DCMAKE_C_FLAGS="$CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$CXXFLAGS"
+  ninja -C "$srcdir/aocl-build"
+
+  #### 2. Build zstd ####
+  echo ":: Building zstd..."
+  cmake -S "$srcdir/zstd-1.5.7/build/cmake" -B "$srcdir/zstd-build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DZSTD_BUILD_PROGRAMS=ON \
+    -DZSTD_BUILD_SHARED=OFF \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_AR=llvm-ar \
+    -DCMAKE_NM=llvm-nm \
+    -DCMAKE_RANLIB=llvm-ranlib \
+    -DCMAKE_STRIP=llvm-strip \
+    -DCMAKE_LINKER=lld \
+    -DCMAKE_C_FLAGS="$CFLAGS -I${srcdir}/aocl-compression-4.0/include" \
+    -DCMAKE_CXX_FLAGS="$CXXFLAGS"
+  ninja -C "$srcdir/zstd-build"
+
+  #### 3. Build xz ####
+  echo ":: Building xz..."
+  cd "$srcdir/xz-5.8.1"
+  ./configure --prefix=/usr \
+    CC=clang \
+    CFLAGS="$CFLAGS -I${srcdir}/aocl-compression-4.0/include" \
+    LDFLAGS="$LDFLAGS -L${srcdir}/aocl-build -laocl-compress"
+  make CC=clang CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+
+  #### 4. Build gzip ####
+  echo ":: Building gzip..."
+  cd "$srcdir/gzip-1.13"
+  ./configure --prefix=/usr \
+    CC=clang \
+    CFLAGS="$CFLAGS -I${srcdir}/aocl-compression-4.0/include" \
+    LDFLAGS="$LDFLAGS -L${srcdir}/aocl-build -laocl-compress"
+  make CC=clang CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+
+  #### 5. Build lzo ####
+  echo ":: Building lzo..."
+  cd "$srcdir/lzo-2.10"
+  ./configure --prefix=/usr \
+    CC=clang \
+    CFLAGS="$CFLAGS -I${srcdir}/aocl-compression-4.0/include" \
+    LDFLAGS="$LDFLAGS -L${srcdir}/aocl-build -laocl-compress"
+  make CC=clang CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+
+  #### 6. Build lz4 ####
+  echo ":: Building lz4..."
+  cd "$srcdir/lz4-1.10.0"
+  make CC=clang CFLAGS="$CFLAGS -I${srcdir}/aocl-compression-4.0/include" LDFLAGS="$LDFLAGS -L${srcdir}/aocl-build -laocl-compress"
+
+  #### 7. Build pigz ####
+  echo ":: Building pigz..."
+  cd "$srcdir/pigz-2.8"
+  make CC=clang CFLAGS="$CFLAGS -I${srcdir}/aocl-compression-4.0/include" LDFLAGS="$LDFLAGS -L${srcdir}/aocl-build -laocl-compress"
+}
+
+package() {
+  install -d "$pkgdir/usr/lib"
+  install -d "$pkgdir/usr/include/aocl"
+  install -d "$pkgdir/usr/bin"
+  install -d "$pkgdir/usr/share/licenses/$pkgname"
+
+  #### 1. Install AOCL ####
+  install -Dm755 "$srcdir/aocl-build/libaocl-compress.so" "$pkgdir/usr/lib/libaocl-compress.so"
+  cp -r "$srcdir/aocl-compression-5.1/include/"* "$pkgdir/usr/include/aocl/"
+  install -Dm644 "$srcdir/aocl-compression-4.0/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.aocl"
+
+  #### 2. Install zstd ####
+  install -Dm755 "$srcdir/zstd-build/programs/zstd" "$pkgdir/usr/bin/zstd"
+  install -Dm644 "$srcdir/zstd-1.5.7/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.zstd"
+
+  #### 3. Install xz ####
+  install -Dm755 "$srcdir/xz-5.8.1/src/xz/xz" "$pkgdir/usr/bin/xz"
+  install -Dm644 "$srcdir/xz-5.8.1/COPYING" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.xz"
+
+  #### 4. Install gzip ####
+  install -Dm755 "$srcdir/gzip-1.13/gzip" "$pkgdir/usr/bin/gzip"
+  install -Dm644 "$srcdir/gzip-1.13/COPYING" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.gzip"
+
+  #### 5. Install lzo ####
+  install -Dm755 "$srcdir/lzo-2.10/src/lzop" "$pkgdir/usr/bin/lzop"
+  install -Dm644 "$srcdir/lzo-2.10/COPYING" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.lzo"
+
+  #### 6. Install lz4 ####
+  install -Dm755 "$srcdir/lz4-1.10.0/lz4" "$pkgdir/usr/bin/lz4"
+  install -Dm644 "$srcdir/lz4-1.10.0/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.lz4"
+
+  #### 7. Install pigz ####
+  install -Dm755 "$srcdir/pigz-2.8/pigz" "$pkgdir/usr/bin/pigz"
+  install -Dm644 "$srcdir/pigz-2.8/README" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.pigz"
+
+}

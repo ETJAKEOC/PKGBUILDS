@@ -1,0 +1,49 @@
+pkgname=make
+pkgver=4.4.1
+pkgrel=2
+pkgdesc="GNU make utility to maintain groups of programs"
+arch=('x86_64')
+url="https://www.gnu.org/software/make"
+license=('GPL3')
+depends=('glibc' 'guile')
+source=("https://ftp.gnu.org/gnu/${pkgname}/${pkgname}-${pkgver}.tar.lz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$pkgname-$pkgver"
+
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -fuse-linker-plugin -fno-plt -fomit-frame-pointer -fvisibility=hidden -ffunction-sections -fdata-sections -fno-semantic-interposition -g0"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -fuse-linker-plugin -fno-plt -fomit-frame-pointer -fvisibility=hidden -ffunction-sections -fdata-sections -fno-semantic-interposition -g0"
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -Wl,--icf=all -fuse-ld=lld -flto -O3 -pthread"
+  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker-plugin-lto -C panic=abort -C debuginfo=0 -C strip=debuginfo"
+  export DEBUG_CFLAGS="-fasynchronous-unwind-tables -g0"
+  export DEBUG_CXXFLAGS="-fasynchronous-unwind-tables -g0"
+  export DEBUG_RUSTFLAGS="-C debuginfo=0"
+  export MAKEFLAGS="-j20"
+
+  ./configure --prefix=/usr
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make $MAKEFLAGS LLVM=1 LLVM_IAS=1
+}
+
+package() {
+	cd "$pkgname-$pkgver"
+	make prefix="${pkgdir}"/usr install
+}

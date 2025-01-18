@@ -1,0 +1,108 @@
+pkgbase=vkd3d-git
+pkgname=('vkd3d-git' 'lib32-vkd3d-git')
+pkgver=1.16.221.g9d490b83
+pkgrel=1
+arch=('x86_64')
+url='https://source.winehq.org/git/vkd3d.git'
+license=('LGPL')
+makedepends=('spirv-headers' 'vulkan-headers' 'xcb-proto' 'wine' 'spirv-tools'
+  'lib32-spirv-tools' 'vulkan-icd-loader' 'lib32-vulkan-icd-loader' 'libxcb'
+  'lib32-libxcb' 'ncurses' 'lib32-ncurses')
+source=(git+$url)
+sha256sums=('SKIP')
+options=('debug')
+
+pkgver() {
+  cd vkd3d
+  echo "$(git describe --long --tags | tr - . | sed 's|vkd3d.||')"
+}
+
+prepare() {
+  mkdir -p build{32,64}
+  cp -a "$srcdir/vkd3d" "$srcdir/vkd3d32"
+}
+
+_env() {
+  export MESA_GLTHREAD=1
+  export MESA_WHICH_LLVM=mesa-git/llvm-git
+  export MESA_SHADER_CACHE_DISABLE=false
+  export MESA_SHADER_CACHE_MAX_SIZE=10G
+  export XDG_SESSION_TYPE=wayland
+  export DXVK_ASYNC=1
+  export GPU_ARCHS=gfx803
+  export GPU_FORCE_64BIT_PTR=1
+  export GPU_MAX_HEAP_SIZE=100
+  export GPU_MAX_ALLOC_PERCENT=100
+  export GPU_SINGLE_ALLOC_PERCENT=100
+  export CC=/usr/bin/clang
+  export CPP=/usr/bin/clang-cpp
+  export CXX=/usr/bin/clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=/usr/bin/clang
+  export HOSTCXX=/usr/bin/clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+  export LLVM_VERSION=21
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize"
+  export CFLAGS="$CPPFLAGS -O3 -flto -pthread -g1 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ffunction-sections -fdata-sections"
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -flto -O3 -pthread -L${srcdir}/build64/.libs"
+  export RUSTFLAGS=" -C link-dead-code=off -C opt-level=3 -C target-cpu=znver2 -C codegen-units=16 -C linker-plugin-lto -C panic=abort -C debuginfo=1 "
+  export DEBUG_CFLAGS="-fasynchronous-unwind-tables -g2"
+  export DEBUG_CXXFLAGS="$DEBUG_CFLAGS"
+  export DEBUG_RUSTFLAGS="-C debuginfo=2"
+}
+
+build() {
+  _env
+  cd "${srcdir}/vkd3d"
+  export PKG_CONFIG_PATH="/usr/lib/pkgconfig:$PKG_CONFIG_PATH"
+  ./autogen.sh
+
+  cd "${srcdir}/build64"
+  ../vkd3d/configure --enable-shared --disable-static --prefix=/usr --with-spirv-tools --host=x86_64-pc-linux-gnu
+
+  LLVM=1 LLVM_IAS=1 make -j$(nproc)
+
+  cd "${srcdir}/vkd3d32"
+  export CPPFLAGS+=" -m32"
+  export CFLAGS+=" -m32"
+  export CXXFLAGS+=" -m32"
+  export LDFLAGS+=" -m32"
+  export PKG_CONFIG_PATH="/usr/lib32/pkgconfig:$PKG_CONFIG_PATH"
+  ./autogen.sh
+
+  cd "${srcdir}/build32"
+  ../vkd3d32/configure --enable-shared --disable-static --prefix=/usr --with-spirv-tools --libdir=/usr/lib32 --host=i686-pc-linux-gnu
+
+  LLVM=1 LLVM_IAS=1 make -j$(nproc)
+}
+
+package_vkd3d-git() {
+  pkgdesc='D3D12 to Vulkan translation library. (GIT version)'
+  depends=('spirv-tools' 'libvulkan.so' 'libxcb' 'ncurses')
+  provides=('vkd3d' "vkd3d=${pkgver}")
+  conflicts=('vkd3d')
+  make -C build64 DESTDIR="${pkgdir}" install
+}
+
+package_lib32-vkd3d-git() {
+  pkgdesc='D3D12 to Vulkan translation library. (GIT version) (32-bits)'
+  depends=("vkd3d=${pkgver}" 'lib32-spirv-tools' 'libvulkan.so' 'lib32-libxcb' 'lib32-ncurses')
+  provides=('lib32-vkd3d')
+  conflicts=('lib32-vkd3d')
+  make -C build32 DESTDIR="${pkgdir}" install
+
+  rm -fr "${pkgdir}/usr/include"
+  mv "${pkgdir}/usr/bin/vkd3d-compiler" "${pkgdir}/usr/bin/vkd3d-compiler-32"
+  mv "${pkgdir}/usr/bin/vkd3d-dxbc" "${pkgdir}/usr/bin/vkd3d-dxbc-32"
+}
