@@ -1,0 +1,21 @@
+#!/bin/bash -ex
+# Highly opinionated wrapper for Arch Linux packaging
+source /etc/environment
+
+exec /usr/bin/meson "$@" \
+    -Dprefix=/usr \
+    -Dlibdir=/usr/lib \
+    --reconfigure \
+    --optimization  3 \
+    --auto-features enabled \
+    -D              libdir=/usr/lib \
+    -D              b_pie=true \
+    -D              b_staticpic=true \
+    -D              b_lto=true \
+    -D              python.bytecompile=2 \
+    -D              backend=ninja \
+    -D              b_colorout=always \
+    -D              c_args="$CFLAGS" \
+    -D              c_link_args="$LDFLAGS" \
+    -D              cpp_args="$CPPFLAGS" \
+    -D              cpp_link_args="$LDFLAGS"

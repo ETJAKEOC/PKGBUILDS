@@ -1,0 +1,157 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=qemu-full-git
+pkgver=10.1.0.r252.g91589bcd9f
+pkgrel=1
+epoch=25
+arch=(x86_64)
+pkgdesc="All-in-one QEMU: every architecture, system emulator, UI, audio backend, guest-agent, and firmware. Git version."
+license=(GPL-2.0-or-later LGPL-2.1-or-later)
+url="https://wiki.qemu.org/"
+depends=(
+alsa-lib brltty bzip2 cairo capstone curl cdrtools dtc fuse3 gcc-libs gdk-pixbuf2
+glib2 glusterfs gnutls gtk3 jack libaio libbpf libcacard libcap-ng libepoxy
+libiscsi libnfs libpng libpulse libsasl libseccomp libslirp libssh libusb
+libx11 libxkbcommon lzo mesa meson ncurses ndctl numactl pam pixman python
+python-sphinx python-sphinx_rtd_theme rdma-core sdl2 sdl2_image seabios
+snappy spice-protocol spice systemd usbredir vde2 virglrenderer vte3 xfsprogs zlib zstd
+)
+optdepends=(
+'samba: SMB/CIFS server support'
+'binfmt-support: run foreign binaries transparently'
+)
+provides=(
+qemu qemu-git qemu-full-git
+qemu-arch-extra-git
+qemu-audio-alsa qemu-audio-dbus qemu-audio-pa qemu-audio-sdl qemu-audio-spice
+qemu-block-iscsi-git qemu-block-gluster-git
+qemu-guest-agent-git
+qemu-hw-display-qxl qemu-hw-display-virtio-gpu-pci-gl qemu-hw-uefi-vars
+qemu-system-arm qemu-system-arm-firmware
+qemu-system-armv7 qemu-system-x86 qemu-system-x86-firmware
+qemu-ui-dbus qemu-ui-gtk qemu-ui-opengl qemu-ui-sdl qemu-ui-spice-app qemu-ui-spice-core
+qemu-user qemu-vhost-user-gpu
+)
+conflicts=("${provides[@]}")
+
+options=(!debug)
+
+source=(
+git+https://gitlab.com/qemu-project/qemu.git
+qemu-guest-agent.service
+65-kvm.rules
+)
+sha256sums=('SKIP'
+'c39bcde4a09165e64419fd2033b3532378bba84d509d39e2d51694d44c1f8d88'
+'a66f0e791b16b03b91049aac61a25950d93e962e1b2ba64a38c6ad7f609b532c')
+
+_gitname=qemu
+_corearch=x86_64
+
+pkgver() {
+    cd "${srcdir}/${_gitname}"
+    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g' | cut -c2-
+}
+
+prepare() {
+    # Prepare qemu and all submodules
+    cd "$srcdir/${_gitname}"
+    git submodule update --init --recursive
+    mkdir -p "$srcdir/${_gitname}/build"
+}
+
+# Centralized environment setup
+_setup_env() {
+    export CC=clang
+    export CXX=clang++
+    export LD=lld
+    export AR=llvm-ar
+    export NM=llvm-nm
+    export STRIP=llvm-strip
+    export OBJCOPY=llvm-objcopy
+    export OBJDUMP=llvm-objdump
+    export RANLIB=llvm-ranlib
+    export HOSTCC=clang
+    export HOSTCXX=clang++
+
+    export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
+    export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -ffunction-sections -fdata-sections -flto=full -g0"
+    export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto=full -ffunction-sections -fdata-sections -g0"
+    export LDFLAGS="-fuse-ld=lld -flto=full -O3 -Wl,--gc-sections -pthread"
+    export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker-plugin-lto -C panic=abort -C debuginfo=0 -C strip=debuginfo"
+}
+
+build() {
+    _setup_env
+    cd "$srcdir/${_gitname}/build"
+    ../configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --libexecdir=/usr/lib/qemu \
+        --smbd=/usr/bin/smbd \
+        --audio-drv-list=alsa,pipewire,pa,jack,sdl \
+        --cpu=znver2 \
+        --disable-werror \
+        --enable-attr \
+        --disable-bochs \
+        --enable-bpf \
+        --enable-blkio \
+        --enable-bzip2 \
+        --enable-cap-ng \
+        --enable-curl \
+        --enable-curses \
+        --enable-download \
+        --enable-fdt \
+        --enable-fuse \
+        --enable-guest-agent \
+        --enable-gtk \
+        --enable-kvm \
+        --enable-libiscsi \
+        --enable-libssh \
+        --enable-libusb \
+        --enable-linux-aio \
+        --enable-lto \
+        --enable-lzo \
+        --enable-malloc-trim \
+        --enable-membarrier \
+        --enable-modules \
+        --enable-numa \
+        --enable-opengl \
+        --enable-pie \
+        --enable-sdl \
+        --enable-slirp \
+        --enable-snappy \
+        --enable-strip \
+        --disable-tcg-interpreter \
+        --enable-tools \
+        --enable-vde \
+        --enable-vhost-crypto \
+        --enable-vhost-kernel \
+        --enable-vhost-net \
+        --enable-vhost-user \
+        --enable-vhost-vdpa \
+        --enable-virglrenderer \
+        --enable-virtfs \
+        --enable-zstd \
+        --disable-cloop \
+        --enable-dmg \
+        --enable-parallels \
+        --enable-qcow1 \
+        --disable-qed \
+        --enable-vdi \
+        --enable-vvfat \
+	--target-list="aarch64-softmmu,arm-softmmu,i386-softmmu,x86_64-softmmu,riscv32-softmmu,riscv64-softmmu" \
+        --cc=clang --cxx=clang++ --extra-cflags="${CFLAGS}" --extra-ldflags="${LDFLAGS}"
+
+    make LLVM=1 LLVM_IAS=1 -j$(nproc)
+}
+
+package() {
+    DESTDIR="$pkgdir" make install -C "$srcdir/qemu/build"
+    install -Dm755 "$srcdir/$_gitname/build/qga/qemu-ga" -t "$pkgdir/usr/bin/"
+    install -Dm644 "$srcdir/qemu-guest-agent.service" -t "$pkgdir/usr/lib/systemd/system/"
+    install -Dm755 "$srcdir/$_gitname/scripts/qemu-guest-agent/fsfreeze-hook" -t "$pkgdir/etc/qemu/"
+    chmod u+s "$pkgdir/usr/lib/qemu/qemu-bridge-helper"
+    install -Dm644 "$srcdir/65-kvm.rules" "$pkgdir/usr/lib/udev/rules.d/65-kvm.rules"
+    rm -r "$pkgdir/var" "$pkgdir/usr/share/doc/qemu"
+}

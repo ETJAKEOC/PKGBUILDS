@@ -1,0 +1,57 @@
+pkgname=openvpn-git
+pkgver=2.7.alpha2.r19.gbc2c7429
+pkgrel=1
+pkgdesc='An easy-to-use, robust and highly configurable VPN (Virtual Private Network) - git checkout'
+arch=('i686' 'x86_64')
+url='https://openvpn.net/index.php/open-source.html'
+license=('custom')
+depends=('openssl' 'lzo' 'lz4' 'systemd-libs' 'libsystemd.so' 'pkcs11-helper' 'libpkcs11-helper.so' 'pam')
+optdepends=('easy-rsa: easy CA and certificate handling')
+makedepends=('git' 'systemd' 'python-docutils')
+conflicts=('openvpn' 'openvpn-dev')
+provides=('openvpn=2.4.0' 'openvpn-dev')
+install=openvpn.install
+source=("git+https://github.com/OpenVPN/openvpn.git"
+        'sysusers.conf'
+        'tmpfiles.conf')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+pkgver() {
+  cd "${srcdir}"/openvpn
+  if GITTAG="$(git describe --abbrev=0 --tags 2>/dev/null)"; then
+    printf '%s.r%s.g%s' \
+      "$(sed -e "s/^${pkgname%%-git}//" -e 's/^[-_/a-zA-Z]\+//' -e 's/[-_+]/./g' <<< ${GITTAG})" \
+      "$(git rev-list --count ${GITTAG}..)" \
+      "$(git rev-parse --short HEAD)"
+  else
+    printf '0.r%s.g%s' \
+      "$(git rev-list --count master)" \
+      "$(git rev-parse --short HEAD)"
+  fi
+}
+
+prepare() {
+  cd "${srcdir}"/openvpn
+  sed -i '/^CONFIGURE_DEFINES=/s/set/env/g' configure.ac
+  autoreconf --force --install
+}
+
+build() {
+  source /etc/environment
+  mkdir "${srcdir}"/build
+  cd "${srcdir}"/build
+  "${srcdir}"/openvpn/configure \
+    --prefix=/usr \
+    --sbindir=/usr/bin \
+    --enable-pkcs11 \
+    --enable-plugins \
+    --enable-systemd \
+    --enable-x509-alt-username \
+    --with-plugindir=/usr/lib/openvpn/plugins
+  make LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd "${srcdir}"/build
+  make DESTDIR="${pkgdir}" install
+}

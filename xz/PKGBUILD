@@ -1,0 +1,61 @@
+pkgname=xz
+pkgver=5.8.1.r39.g7c12726c
+pkgrel=1
+pkgdesc='Library and command line tools for XZ and LZMA compressed files'
+arch=('x86_64')
+url='https://tukaani.org/xz/'
+license=('GPL' 'LGPL' 'custom')
+depends=('sh')
+makedepends=('git' 'po4a' 'doxygen')
+provides=('liblzma.so')
+source=("git+https://github.com/tukaani-project/xz.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd ${pkgname}
+  git describe --long --tags | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+  cd ${pkgname}
+  #./autogen.sh # Has to be run the first time, remove AC_Sanity check, comment this line out, then rebuild with '-ei'
+  ./configure --prefix=/usr --enable-rpath --enable-doxygen --enable-assume-ram=32194024 \
+  --enable-shared --enable-year2038 CC=clang CPP=clang --build='x86-pc-linux-gnu' --target='x86-pc-linux-gnu' --host='x86-pc-linux-gnu' \
+  CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize" \
+  CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections" \
+  CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections" \
+  LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
+
+  export MAKEFLAGS="-j20"
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize" \
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections" \
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections" \
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
+
+  export CC=clang
+  export CXX=clang++
+  export CPP=clang-cpp
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make $MAKEFLAGS LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd ${pkgname}
+  make DESTDIR="${pkgdir}" install
+  install -d -m0755 "${pkgdir}/usr/share/licenses/xz/"
+  ln -sf /usr/share/doc/xz/COPYING "${pkgdir}/usr/share/licenses/xz/"
+}

@@ -1,0 +1,24 @@
+_pkgname=waydroid
+pkgname=$_pkgname-ETJAKEOC
+pkgver=4.2.0
+pkgrel=1
+pkgdesc="A container-based approach to boot a full Android system on Arch Linux"
+arch=('any')
+url="https://github.com/ETJAKEOC/waydroid"
+license=('GPL3')
+depends=('lxc' 'python-gbinder' 'python-gobject' 'nftables' 'dnsmasq' 'gtk3' 'dbus-python')
+makedepends=('git')
+optdepends=('waydroid-image: Android image for use with waydroid'
+            'python-pyclip: share clipboard with container')
+install="$_pkgname.install"
+source=("git+$url.git")
+sha256sums=('SKIP')
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+
+package() {
+  cd "$_pkgname"
+  LLVM=1 LLVM_IAS=1 DESTDIR="$pkgdir/" make install
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$_pkgname/LICENSE"
+}

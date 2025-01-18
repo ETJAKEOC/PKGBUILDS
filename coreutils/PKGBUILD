@@ -1,0 +1,45 @@
+pkgname=coreutils
+pkgver=9.7
+pkgrel=1
+pkgdesc='The basic file, shell and text manipulation utilities of the GNU operating system'
+arch=('x86_64')
+url='https://git.savannah.gnu.org/git'
+depends=(acl attr glibc gmp libcap openssl)
+makedepends=(git gperf python wget)
+source=(git+${url}/coreutils.git git+${url}/gnulib.git)
+b2sums=('SKIP' 'SKIP')
+
+prepare() {
+  cd "${pkgname}"
+
+  git submodule init
+  git config submodule.gnulib.url ../gnulib
+  git -c protocol.file.allow=always submodule update
+
+  ./bootstrap
+
+  local src
+  for src in "${source[@]}"; do
+    src="${src%%::*}"
+    src="${src##*/}"
+    [[ $src = *.patch ]] || continue
+    echo "Applying patch $src..."
+    patch -Np1 < "../$src"
+  done
+}
+
+build() {
+  cd "${pkgname}"
+  source /etc/environment
+  ./configure \
+    --prefix=/usr \
+    --libexecdir=/usr/lib \
+    --with-openssl \
+    --enable-no-install-program=hostname,kill,uptime
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CC_LD=lld CXX_LD=lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=lld make -j20 LLVM=1 LLVM_IAS=1
+}
+
+package() {
+  cd "${pkgname}"
+  make DESTDIR="${pkgdir}" install
+}

@@ -1,0 +1,68 @@
+_pkgname=fakeroot
+pkgname=fakeroot-git
+pkgver=1.14.3.r265.g787d757
+pkgrel=1
+pkgdesc='Tool for simulating superuser privileges'
+arch=('x86_64')
+license=('GPL')
+url='https://github.com/mackyle/fakeroot'
+groups=('base-devel')
+depends=('glibc' 'filesystem' 'sed' 'util-linux' 'sh')
+makedepends=('systemd' 'po4a')
+provides=("$_pkgname")
+source=(git+${url}.git)
+sha256sums=('SKIP')
+options=('!lto')
+
+pkgver() {
+  cd "$_pkgname"
+  git describe --long | sed 's/^debian\///;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+prepare() {
+  cd $_pkgname
+  ./bootstrap
+}
+
+build() {
+  cd $_pkgname
+
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0  -std=gnu23"
+  export CPPFLAGS="-I/usr/include ${CFLAGS}"
+  export CXXFLAGS="${CFLAGS}"
+  export LDFLAGS="-fuse-ld=lld -O3 -pthread"
+
+  ./configure --prefix=/usr \
+    --libdir=/usr/lib/libfakeroot \
+    --disable-static \
+    --with-ipc=sysv \
+    --enable-pic
+
+  sed -i 's/#define SETGROUPS_SIZE_TYPE unknown/#define SETGROUPS_SIZE_TYPE gid_t/' config.h
+  sed -i 's/#undef _STAT_VER/#define _STAT_VER 0/' config.h
+
+  make -j$(nproc)
+
+  cd doc
+  po4a -k 0 --rm-backups --variable 'srcdir=../doc/' po4a/po4a.cfg
+}
+
+package() {
+  cd $_pkgname
+  make DESTDIR="$pkgdir" install
+  install -dm0755 "$pkgdir/etc/ld.so.conf.d/"
+  echo '/usr/lib/libfakeroot' > "$pkgdir/etc/ld.so.conf.d/fakeroot.conf"
+  install -Dm0644 README "$pkgdir/usr/share/doc/$_pkgname/README"
+  strip --strip-unneeded "$pkgdir"/usr/bin/*
+
+  echo "===================================================================="
+  echo "The install will fail if you don't already have a working fakeroot"
+  echo "You need to do these steps manually:"
+  echo "cd src/fakeroot"
+  echo "sudo make install"
+  echo "===================================================================="
+}

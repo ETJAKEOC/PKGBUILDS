@@ -1,0 +1,31 @@
+# Maintainer: Guillaume Horel <guillaume.horel@gmail.com>
+pkgname='libdecaf'
+pkgver='1.0.2'
+pkgrel=3
+pkgdesc="A 448-bit Edwards curve"
+url="https://sourceforge.net/projects/ed448goldilocks/"
+depends=('glibc')
+makedepends=('cmake' 'git' 'python')
+license=('MIT')
+arch=('x86_64')
+source=("libdecaf-1.0.2::http://ftp.us.debian.org/debian/pool/main/libd/libdecaf/libdecaf_1.0.2.orig.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cmake -B build -S "${pkgname}-${pkgver}" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DENABLE_STATIC=OFF \
+    -DENABLE_TESTS=ON \
+    -DCMAKE_BUILD_TYPE='None' \
+    -DCMAKE_C_FLAGS="-Wno-sizeof-array-div -Wno-array-parameter -Wno-error=default-const-init-var-unsafe" \
+    -DCMAKE_CXX_FLAGS="-Wno-error=deprecated-copy" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -Wno-dev
+    make -C build
+}
+
+package() {
+    make DESTDIR="${pkgdir}" -C build install
+    install -D -m644 "${pkgname}-${pkgver}/LICENSE.txt" "${pkgdir}/usr/share/licenses/$pkgname/LICENSE.txt"
+}

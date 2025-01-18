@@ -1,0 +1,40 @@
+pkgname=meson
+pkgver=1.9.1
+pkgrel=1
+pkgdesc="High productivity build system"
+url="https://mesonbuild.com/"
+arch=(any)
+license=(Apache-2.0)
+depends=(bash ninja python python-tqdm)
+makedepends=(python-build python-installer python-setuptools python-wheel)
+checkdepends=(boost clang cmake cuda cython doxygen gcc-fortran gcc-objc git
+  glib2-devel glibc-locales gmock gnustep-base gobject-introspection graphviz
+  gtest gtk-doc gtk-sharp-2 gtk3 gtkmm3 hotdoc itstool java-environment ldc
+  libelf libwmf llvm mercurial mono nasm netcdf-fortran openmpi openssh protobuf
+  python-gobject python-pytest-xdist qt5-base qt5-tools rust rust-bindgen sdl2
+  vala valgrind vulkan-validation-layers wayland-protocols wxgtk3)
+source=(git+https://github.com/mesonbuild/meson.git
+	meson-reference-$pkgver.3::https://github.com/mesonbuild/meson/releases/download/$pkgver/meson-reference.3
+	meson-reference-$pkgver.json::https://github.com/mesonbuild/meson/releases/download/$pkgver/reference_manual.json
+	arch-meson cross-lib32 native-clang)
+
+build() {
+  cd "${srcdir}/${pkgname}"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd $pkgname
+  python -m installer --destdir="$pkgdir" dist/*.whl
+
+  install -Dm644 data/shell-completions/bash/* -t "$pkgdir/usr/share/bash-completion/completions"
+  install -Dm644 data/shell-completions/zsh/*  -t "$pkgdir/usr/share/zsh/site-functions"
+
+  install -Dm644 ../meson-reference-$pkgver.3    "$pkgdir/usr/share/man/man3/meson-reference.3"
+  install -Dm644 ../meson-reference-$pkgver.json "$pkgdir/usr/share/doc/$pkgname/reference_manual.json"
+
+  install -D ../arch-meson -t "$pkgdir/usr/bin"
+
+  install -Dm644 ../cross-lib32 "$pkgdir/usr/share/meson/cross/lib32"
+  install -Dm644 ../native-clang "$pkgdir/usr/share/meson/native/clang"
+}

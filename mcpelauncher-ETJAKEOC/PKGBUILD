@@ -1,0 +1,136 @@
+pkgname=mcpelauncher-ETJAKEOC
+pkgver=0.3.2.r296.gc43b7bf
+pkgrel=1
+pkgdesc="Minecraft PE launcher for Linux"
+arch=('x86_64')
+url="https://github.com/minecraft-linux/mcpelauncher-manifest"
+license=('GPL')
+depends=('sdl2' 'mcpelauncher-ui')
+makedepends=('clang' 'llvm' 'lld' 'cmake' 'rust' 'git' 'fakeroot')
+_git_base="git+https://github.com/minecraft-linux"
+_git_ocornut="git+https://github.com/ocornut"
+_git_christopher="git+https://github.com/ChristopherHX"
+_git_freund="git+https://github.com/freundTech"
+_git_sdl="git+https://github.com/libsdl-org"
+source=(
+  "${_git_base}/android_bionic.git"
+  "${_git_base}/android_core.git"
+  "${_git_base}/android-support-headers.git"
+  "${_git_base}/arg-parser.git"
+  "${_git_base}/base64.git"
+  "${_git_base}/cll-telemetry.git"
+  "${_git_base}/daemon-utils.git"
+  "${_git_base}/eglut.git"
+  "${_git_base}/epoll-shim.git"
+  "${_git_base}/file-picker.git"
+  "${_git_base}/file-util.git"
+  "${_git_base}/game-window.git"
+  "${_git_base}/libc-shim.git"
+  "${_git_base}/logger.git"
+  "${_git_base}/mcpelauncher-apkinfo.git"
+  "${_git_base}/mcpelauncher-client.git"
+  "${_git_base}/mcpelauncher-common.git"
+  "${_git_base}/mcpelauncher-core.git"
+  "${_git_base}/mcpelauncher-elfinfo.git"
+  "${_git_base}/mcpelauncher-errorwindow.git"
+  "${_git_base}/mcpelauncher-extract.git"
+  "${_git_base}/mcpelauncher-linker.git"
+  "${_git_base}/mcpelauncher-linux-bin.git"
+  "${_git_base}/mcpelauncher-manifest.git"
+  "${_git_base}/mcpelauncher-proprietary.git"
+  "${_git_base}/mcpelauncher-ui-manifest.git"
+  "${_git_base}/mcpelauncher-ui-qt.git"
+  "${_git_base}/mcpelauncher-versiondb.git"
+  "${_git_base}/minecraft-imported-symbols.git"
+  "${_git_base}/msa.git"
+  "${_git_base}/msa-ui-qt.git"
+  "${_git_base}/msa-manifest.git"
+  "${_git_base}/msa-daemon-client.git"
+  "${_git_base}/properties-parser.git"
+  "${_git_base}/simple-ipc.git"
+  "${_git_sdl}/SDL.git"
+  "${_git_ocornut}/imgui.git"
+  "${_git_christopher}/libjnivm.git"
+  "${_git_freund}/mcpelauncher-webview.git"
+)
+sha256sums=(
+  'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+  'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+  'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
+  'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+pkgver() {
+  cd "${srcdir}/mcpelauncher-manifest"
+  _tag=$(git tag -l --sort -v:refname | grep -E '^v?[0-9\.]+$' | tail -n1)
+  _rev=$(git rev-list --count $_tag..HEAD)
+  _hash=$(git rev-parse --short HEAD)
+  printf "%s.r%s.g%s" "$_tag" "$_rev" "$_hash" | sed 's/^v//'
+}
+
+safe_ln_sfT() {
+  local target="$1"
+  local link="$2"
+  if [ -e "$link" ] || [ -L "$link" ]; then
+    rm -rf "$link"
+  fi
+  ln -sfT "$target" "$link"
+}
+
+prepare() {
+  cd "$srcdir/mcpelauncher-client"
+
+  # List of repos and special android dirs to link inside mcpelauncher-manifest
+  repos=(
+    android-support-headers arg-parser base64 cll-telemetry daemon-utils eglut epoll-shim file-picker file-util
+    game-window imgui libc-shim libjnivm logger mcpelauncher-apkinfo mcpelauncher-client mcpelauncher-common
+    mcpelauncher-core mcpelauncher-elfinfo mcpelauncher-errorwindow mcpelauncher-extract mcpelauncher-linker
+    mcpelauncher-linux-bin mcpelauncher-manifest mcpelauncher-proprietary mcpelauncher-ui-manifest mcpelauncher-ui-qt
+    mcpelauncher-versiondb mcpelauncher-webview minecraft-imported-symbols msa msa-ui-qt msa-manifest msa-daemon-client
+    properties-parser simple-ipc
+  )
+
+  # Symlink regular repos first
+  for repo in "${repos[@]}"; do
+    safe_ln_sfT "$srcdir/$repo" "$srcdir/mcpelauncher-manifest/$repo"
+  done
+
+  # SDL explicitly as sdl3
+  safe_ln_sfT "$srcdir/SDL" "$srcdir/mcpelauncher-manifest/sdl3"
+
+  # Now handle android_bionic and android_core subdirs expected in linker:
+  safe_ln_sfT "$srcdir/android_bionic" "$srcdir/mcpelauncher-manifest/mcpelauncher-linker/bionic"
+  safe_ln_sfT "$srcdir/android_bionic/libc" "$srcdir/mcpelauncher-manifest/mcpelauncher-linker/libc"
+  safe_ln_sfT "$srcdir/android_bionic/linker" "$srcdir/mcpelauncher-manifest/mcpelauncher-linker/linker"
+  safe_ln_sfT "$srcdir/android_core" "$srcdir/mcpelauncher-manifest/mcpelauncher-linker/core"
+
+  # Fix shit ass fucking curl
+  mkdir -p "$srcdir/mcpelauncher-manifest/ext/curl/lib"
+  safe_ln_sfT /usr/lib/libcurl.a "$srcdir/mcpelauncher-manifest/ext/curl/lib/libcurl.a"
+
+  # lldiv shim patch as before...
+  symfile="$srcdir/mcpelauncher-manifest/minecraft-imported-symbols/src/imported_symbols.cpp"
+  mkdir -p "$(dirname "$symfile")"
+  if ! grep -q 'lldiv' "$symfile" 2>/dev/null; then
+    cat >> "$symfile" << 'EOF'
+  // lldiv shim for Android binary compatibility
+  extern "C" lldiv_t lldiv(long long numer, long long denom) {
+      lldiv_t result;
+      result.quot = numer / denom;
+      result.rem = numer % denom;
+      return result;
+  }
+EOF
+  fi
+}
+
+build() {
+  cd "$srcdir/mcpelauncher-manifest"
+  mkdir -p build && cd build
+  cmake .. -G Ninja -Wno-dev -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DJNI_USE_JNIVM=ON -DGAMEWINDOW_SYSTEM=SDL3 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DUSE_SYSTEM_CURL=ON
+  ninja -j20
+}
+
+package() {
+  cd "$srcdir/mcpelauncher-manifest/build"
+  DESTDIR="$pkgdir" ninja install
+}

@@ -1,0 +1,213 @@
+pkgname=proton-ETJAKEOC
+pkgver=GE.Proton10.21
+_geckover=2.47.4
+_monover=10.3.0
+_xaliaver=0.4.6
+pkgrel=1
+epoch=2
+pkgdesc="Compatibility tool for Steam Play based on Wine and additional components, GloriousEggroll's custom build"
+url="https://github.com/GloriousEggroll/proton-ge-custom"
+arch=(x86_64)
+options=(!staticlibs !debug emptydirs)
+license=('custom')
+depends=(
+  attr             lib32-attr
+  fontconfig       lib32-fontconfig
+  libxcursor       lib32-libxcursor
+  libxrandr        lib32-libxrandr
+  libxi            lib32-libxi
+  gettext          lib32-gettext
+  freetype2        lib32-freetype2
+  gcc-libs         lib32-gcc-libs
+  libpcap          lib32-libpcap
+  lzo              lib32-lzo
+  libxkbcommon     lib32-libxkbcommon
+  libvpx           lib32-libvpx
+  sdl2             lib32-sdl2
+  libsoup          lib32-libsoup
+  libgudev         lib32-libgudev
+  blas             lib32-blas
+  lapack           lib32-lapack
+  speex            lib32-speex
+  desktop-file-utils
+  python
+  steam-native-runtime
+  cabextract
+)
+
+makedepends=(autoconf bison perl flex mingw-w64-gcc
+  git wget rsync unzip mingw-w64-tools lld nasm
+  meson cmake fontforge afdko python-pefile glib2-devel
+  glslang vulkan-headers
+  clang
+  giflib                lib32-giflib
+  gnutls                lib32-gnutls
+  libxinerama           lib32-libxinerama
+  libxcomposite         lib32-libxcomposite
+  libxxf86vm            lib32-libxxf86vm
+  v4l-utils             lib32-v4l-utils
+  alsa-lib              lib32-alsa-lib
+  libxcomposite         lib32-libxcomposite
+  mesa                  lib32-mesa
+  mesa-libgl            lib32-mesa-libgl
+  opencl-icd-loader     lib32-opencl-icd-loader
+  libpulse              lib32-libpulse
+  gtk3                  lib32-gtk3
+  gst-plugins-base-libs lib32-gst-plugins-base-libs
+  vulkan-icd-loader     lib32-vulkan-icd-loader
+  sdl2                  lib32-sdl2
+  rust                  lib32-rust-libs
+  libgphoto2
+  opencl-headers
+  wayland-protocols
+)
+
+optdepends=(
+  giflib                lib32-giflib
+  gnutls                lib32-gnutls
+  v4l-utils             lib32-v4l-utils
+  libpulse              lib32-libpulse
+  alsa-plugins          lib32-alsa-plugins
+  alsa-lib              lib32-alsa-lib
+  libxcomposite         lib32-libxcomposite
+  libxinerama           lib32-libxinerama
+  opencl-icd-loader     lib32-opencl-icd-loader
+  gtk3                  lib32-gtk3
+  gst-plugins-base-libs lib32-gst-plugins-base-libs
+  vulkan-icd-loader     lib32-vulkan-icd-loader
+  libgphoto2
+)
+
+provides=('proton')
+install=${pkgname}.install
+source=(
+    proton-ge-custom::git+https://github.com/gloriouseggroll/proton-ge-custom.git
+    https://dl.winehq.org/wine/wine-gecko/${_geckover}/wine-gecko-${_geckover}-x86{,_64}.tar.xz
+    https://github.com/madewokherd/wine-mono/releases/download/wine-mono-${_monover}/wine-mono-${_monover}-x86.tar.xz
+    https://github.com/madewokherd/xalia/releases/download/xalia-${_xaliaver}/xalia-${_xaliaver}-net48-mono.zip
+    proton-ETJAKEOC.install
+)
+noextract=(
+    wine-gecko-${_geckover}-{x86,x86_64}.tar.xz
+    wine-mono-${_monover}-x86.tar.xz
+    xalia-${_xaliaver}-net48-mono.zip
+)
+
+pkgver() {
+  cd "$srcdir/proton-ge-custom"
+  local tag
+  tag=$(git tag -l 'GE-Proton*' --sort=-v:refname | head -n 1)
+  [[ -z "$tag" ]] && tag="GE-Proton10-21"
+  printf "%s" "${tag//-/.}"
+}
+
+prepare() {
+	rm -rf wrappers && mkdir wrappers
+	cd proton-ge-custom
+
+	# Bring in contrib files
+	mkdir -p contrib
+	mv "$srcdir"/wine-gecko-${_geckover}-x86{,_64}.tar.xz contrib/
+	mv "$srcdir"/wine-mono-${_monover}-x86.tar.xz contrib/
+	mv "$srcdir"/xalia-${_xaliaver}-net48-mono.zip contrib/
+
+	# Initialize submodules
+	git submodule update --init --recursive
+
+	# Optional: disable container auto-detect by patching configure.sh
+	sed -i 's/TryContainer/#TryContainer/g' configure.sh
+	sed -i 's/containerengine=/#containerengine=/g' configure.sh
+
+	# Apply upstream staging + GE patches
+	./patches/protonprep-valve-staging.sh
+
+	# Prepare rust deps
+	export RUSTUP_TOOLCHAIN=nightly
+	export CARGO_HOME="${SRCDEST}/proton-cargo"
+	for rustlib in gst-plugins-rs; do
+		pushd $rustlib
+		cargo fetch --target i686-unknown-linux-gnu
+		cargo fetch --target x86_64-unknown-linux-gnu
+		popd
+	done
+}
+
+build() {
+	cd "$srcdir/build"
+	[ ! -d build ] && mkdir build
+	cd build
+
+	# Disable container builds
+	export PROTON_USE_CONTAINER=0
+	export CONTAINER=0
+	export NOCONTAINER=1
+
+	# Compiler setup
+	CC=clang
+	CXX=clang++
+	LD=lld
+	AR=llvm-ar
+	NM=llvm-nm
+	STRIP=llvm-strip
+	OBJCOPY=llvm-objcopy
+	OBJDUMP=llvm-objdump
+	RANLIB=llvm-ranlib
+	READELF=llvm-readelf
+	HOSTCC=clang
+	HOSTCXX=clang++
+	HOSTAR=llvm-ar
+	HOSTLD=lld
+
+	# Optimization flags
+	ETJAKEOC_FLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -fuse-ld=lld"
+	export CFLAGS="$ETJAKEOC_FLAGS"
+	export CXXFLAGS="$ETJAKEOC_FLAGS"
+	export LDFLAGS="-fuse-ld=lld"
+	export RUSTFLAGS="-C opt-level=3 -C lto -C target-cpu=znver2 -C codegen-units=4 -C linker-plugin-lto"
+
+	export RUSTUP_TOOLCHAIN=nightly
+	export CARGO_HOME="${SRCDEST}/proton-cargo"
+	unset DISPLAY
+
+	# Run the native configure
+	../proton-ge-custom/configure.sh --build-name="${pkgname}" --no-container
+
+	# Build
+	make -j$(nproc) LLVM=1 LLVM_IAS=1 V=1 VERBOSE=1
+}
+
+package() {
+    cd build
+    rm -rf dst-* obj-* src-* pfx-*
+    local _compatdir="$pkgdir/usr/share/steam/compatibilitytools.d"
+    mkdir -p "$_compatdir/${pkgname}"
+    rsync --delete -arx dist/* "$_compatdir/${pkgname}"
+    cp /usr/i686-w64-mingw32/bin/{libgcc_s_dw2-1.dll,libwinpthread-1.dll} \
+        "$_compatdir/${pkgname}"/files/lib/vkd3d/
+    cp /usr/x86_64-w64-mingw32/bin/{libgcc_s_seh-1.dll,libwinpthread-1.dll} \
+        "$_compatdir/${pkgname}"/files/lib64/vkd3d/
+    mkdir -p "$pkgdir/usr/share/licenses/${pkgname}"
+    mv "$_compatdir/${pkgname}"/LICENSE{,.OFL} \
+        "$pkgdir/usr/share/licenses/${pkgname}"
+    cd "$_compatdir/${pkgname}/files"
+    i686-w64-mingw32-strip --strip-unneeded \
+        $(find lib/wine \( -iname fakedlls -or -iname i386-windows \) -prune -false -or -iname "*.dll" -or -iname "*.exe")
+    x86_64-w64-mingw32-strip --strip-unneeded \
+        $(find lib64/wine \( -iname fakedlls -or -iname x86_64-windows \) -prune -false -or -iname "*.dll" -or -iname "*.exe")
+    local _geckodir="share/wine/gecko/wine-gecko-${_geckover}"
+    i686-w64-mingw32-strip --strip-unneeded \
+        $(find "$_geckodir"-x86 -iname "*.dll" -or -iname "*.exe")
+    x86_64-w64-mingw32-strip --strip-unneeded \
+        $(find "$_geckodir"-x86_64 -iname "*.dll" -or -iname "*.exe")
+    local _monodir="share/wine/mono/wine-mono-${_monover}"
+    i686-w64-mingw32-strip --strip-unneeded \
+        $(find "$_monodir"/lib/mono -iname "*.dll" -or -iname "*.exe")
+    i686-w64-mingw32-strip --strip-unneeded \
+        "$_monodir"/lib/x86/*.dll \
+        $(find "$_monodir" -iname "*x86.dll" -or -iname "*x86.exe")
+    x86_64-w64-mingw32-strip --strip-unneeded \
+        "$_monodir"/lib/x86_64/*.dll \
+        $(find "$_monodir" -iname "*x86_64.dll" -or -iname "*x86_64.exe")
+}
+
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')

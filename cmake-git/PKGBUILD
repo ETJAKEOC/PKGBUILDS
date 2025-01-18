@@ -1,0 +1,35 @@
+pkgname=cmake-git
+pkgver=4.2.0.rc1.146.ga1a8fbd0de
+pkgrel=1
+pkgdesc='A cross-platform open-source make system'
+arch=('x86_64')
+url="http://www.cmake.org/"
+license=('custom')
+conflicts=('cmake')
+provides=('cmake')
+depends=('curl' 'libarchive' 'hicolor-icon-theme' 'jsoncpp' 'libjsoncpp.so' 'libuv' 'rhash' 'cppdap')
+makedepends=('qt6-base' 'python-sphinx' 'nlohmann-json' 'git')
+optdepends=('qt6-base: cmake-gui')
+source=('git+https://gitlab.kitware.com/cmake/cmake.git')
+md5sums=('SKIP')
+
+pkgver() {
+    cd "$srcdir/cmake"
+    git describe --always --tags --long | sed -e 's|^v||' -e 's|-|.|g'
+}
+
+build() {
+  cd "$srcdir/cmake"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
+  export LDFLAGS="-fuse-ld=lld -O3 -flto"
+  ./bootstrap --prefix=/usr --mandir=share/man --docdir=share/doc/cmake --datadir=share/cmake \
+  --sphinx-man --system-libs --qt-gui --parallel=24
+  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" LLVM=1 LLVM_IAS=1 make -j$(nproc)
+}
+
+package() {
+  cd "$srcdir/cmake"
+  make DESTDIR="${pkgdir}" install
+}

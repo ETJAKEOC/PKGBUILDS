@@ -1,0 +1,115 @@
+pkgname=mesa-git
+pkgdesc="an open-source implementation of the OpenGL specification, git version"
+pkgver=25.3.0_devel.210249.fc1b26f4dca.d41d8cd
+pkgrel=1
+arch=('x86_64')
+makedepends=(
+	'git'
+	'xorgproto'
+	'meson'
+	'libxml2'
+	'libvdpau'
+	'libva'
+	'elfutils'
+	'libxrandr'
+	'glslang'
+	'directx-headers-git'
+	'python-mako'
+	'python-ply'
+	'cbindgen'
+	'wayland-protocols'
+	'python-packaging'
+	'python-pyaml'
+)
+depends=(
+	'libdrm'
+	'libxxf86vm'
+	'libxdamage'
+	'libxshmfence'
+	'libelf'
+	'libglvnd'
+	'wayland'
+	'lm_sensors'
+	'vulkan-icd-loader'
+	'zstd'
+	'expat'
+	'gcc-libs'
+	'libxfixes'
+	'libx11'
+	'systemd-libs'
+	'libxext'
+	'libxcb'
+	'glibc'
+	'zlib'
+	'python'
+	'xcb-util-keysyms'
+)
+optdepends=('opengl-man-pages: for the OpenGL API man pages')
+provides=('vulkan-mesa-layers' 'opencl-driver' 'opengl-driver' 'vulkan-driver' 'vulkan-radeon' 'vulkan-swrast' 'vulkan-virtio' 'libva-mesa-driver' 'mesa-vdpau' 'mesa-libgl' 'mesa')
+conflicts=('vulkan-mesa-layers' 'opencl-clover-mesa' 'vulkan-radeon' 'vulkan-swrast' 'vulkan-virtio' 'libva-mesa-driver' 'mesa-vdpau' 'mesa-libgl' 'mesa')
+url="https://www.mesa3d.org"
+license=('custom')
+source=('mesa::git+https://gitlab.freedesktop.org/mesa/mesa.git' 'LICENSE')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+declare -A _crates=(
+   proc-macro2    1.0.92
+   quote          1.0.37
+   syn            2.0.90
+   unicode-ident  1.0.14
+)
+
+for _crate in "${!_crates[@]}"; do
+  source+=($_crate-${_crates[$_crate]}.tar.gz::https://crates.io/api/v1/crates/$_crate/${_crates[$_crate]}/download)
+done
+
+pkgver() {
+    cd mesa
+    local _ver
+    _ver=$(<VERSION)
+    local _patchver
+    local _patchfile
+    for _patchfile in "$source[@]"; do
+        _patchfile="$_patchfile%%::*"
+        _patchfile="$_patchfile##*/"
+        [[ $_patchfile = *.patch ]] || continue
+        _patchver="$_patchver$(md5sum $srcdir/$_patchfile | cut -c1-32)"
+    done
+    _patchver="$(echo -n $_patchver | md5sum | cut -c1-7)"
+    echo ${_ver/-/_}.$(git rev-list --count HEAD).$(git rev-parse --short HEAD).$_patchver
+}
+
+prepare() {
+    if [  -d build ]; then
+        rm -rf build && mkdir build
+    fi
+    local _patchfile
+    for _patchfile in "$source[@]"; do
+        _patchfile="$_patchfile%%::*"
+        _patchfile="$_patchfile##*/"
+        [[ $_patchfile = *.patch ]] || continue
+        echo "Applying patch $_patchfile..."
+        patch --directory=mesa --forward --strip=1 --input="$srcdir/$_patchfile"
+    done
+    cd mesa
+    git submodule update --init --recursive
+}
+
+build () {
+    arch-meson build mesa -D gallium-drivers=r300,r600,radeonsi,virgl,svga,softpipe,llvmpipe,d3d12,v3d -D glvnd=enabled -D gallium-d3d12-graphics=auto \
+    -D android-libbacktrace=disabled -D b_ndebug=true -D b_lto=true -D egl=enabled -D gallium-extra-hud=true -D opengl=true -D gallium-d3d12-video=enabled \
+    -D gallium-d3d10umd=false -D gallium-nine=true -D gallium-opencl=icd -D gallium-rusticl=false -D gallium-va=enabled -D xlib-lease=enabled \
+    -D gallium-vdpau=enabled -D gallium-xa=enabled -D gbm=enabled -D gles1=disabled -D gles2=enabled -D intel-rt=disabled -D glx-direct=true \
+    -D glvnd=enabled -D glx=dri -D intel-clc=enabled -D install-intel-clc=true -D libunwind=enabled -D llvm=enabled -D lmsensors=enabled -D shader-cache-max-size=16G \
+    -D microsoft-clc=disabled -D osmesa=true -D platforms=x11,wayland -D shared-glapi=enabled -D valgrind=disabled -D shader-cache=enabled \
+    -D video-codecs=all -D vulkan-drivers=amd,swrast,virtio,gfxstream -D vulkan-layers=device-select,overlay,screenshot -D draw-use-llvm=true \
+    -D tools=[] -D zstd=enabled -D legacy-x11=dri2 -D shared-llvm=enabled -D amd-use-llvm=true -D static-libclc=all -D vulkan-beta=true
+    ninja -j$(nproc) -C build
+}
+
+package() {
+    DESTDIR="$pkgdir" ninja -j$(nproc) -C build install
+#    rm "$pkgdir/usr/bin/mesa-overlay-control.py"
+#    rmdir "$pkgdir/usr/bin"
+    ln -s /usr/lib/libGLX_mesa.so.0 "$pkgdir/usr/lib/libGLX_indirect.so.0"
+    install -m644 -Dt "$pkgdir/usr/share/licenses/$pkgname" "$srcdir/LICENSE"
+}

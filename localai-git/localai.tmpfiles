@@ -1,0 +1,8 @@
+d /STORAGE/localai 0750 localai localai
+d /STORAGE/localai/config 0750 localai localai
+d /STORAGE/localai/models 0750 localai localai
+d /STORAGE/localai/backend-assets 0750 localai localai
+d /STORAGE/localai 0750 localai localai
+d /STORAGE/localai/audio 0750 localai localai
+d /STORAGE/localai/images 0750 localai localai
+d /STORAGE/localai/upload 0750 localai localai

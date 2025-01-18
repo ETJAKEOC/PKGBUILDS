@@ -1,0 +1,15 @@
+--- a/src/libandroid/native_window.c
++++ b/src/libandroid/native_window.c
+@@ -674,6 +674,12 @@
+ 	}
+
+ 	xr_func func = dlsym(openxr_loader_handle, func_name);
+-	return func(__builtin_va_arg_pack());
++#ifdef __clang__
++    // Clang workaround: __builtin_va_arg_pack is not supported
++    fprintf(stderr, "WARNING: Clang workaround applied for varargs dispatch.\n");
++    return func();
++#else
++	return func(__builtin_va_arg_pack());
++#endif
+ }

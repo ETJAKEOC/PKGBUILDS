@@ -1,0 +1,120 @@
+pkgname="aocl-suite-git"
+pkgver=5.1
+pkgrel=1
+pkgdesc="Meta package to install multiple AOCL libraries"
+arch=('x86_64')
+url="https://github.com/AMD/"
+license=('custom')
+depends=('openssl' 'gcc-libs')
+makedepends=('git' 'base-devel' 'git-lfs' 'cmake' 'clang' 'llvm')
+provides=('aocl-meta' 'aocl-compression' 'aocl-crypto'
+          'aocl-data-analytics' 'aocl-libm-ose' 'aocl-libmem'
+          'aocl-sparse' 'aocl-utils')
+conflicts=("${provides[@]}")
+source=(
+  'git+https://github.com/AMD/aocl-utils.git'
+  'git+https://github.com/AMD/aocl-libmem.git'
+  'git+https://github.com/AMD/aocl-sparse.git'
+  'git+https://github.com/AMD/aocl-compression.git'
+  'git+https://github.com/AMD/aocl-data-analytics.git'
+  'git+https://github.com/AMD/aocl-libm-ose.git'
+)
+md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+pkgver() {
+  cd "$srcdir/aocl-utils"
+  git describe --tags | sed 's/^v//;s/-/./g'
+}
+
+prepare() {
+  cd "$srcdir"
+  # LFS fetch
+  if grep -q 'filter=lfs' .gitattributes 2>/dev/null; then
+    echo ":: Attempting LFS fetch for $dir"
+    git lfs pull || echo ":: LFS pull failed for $dir, continuing"
+  fi
+  # Manual clone aocl-crypto with LFS smudge disabled
+  if [[ "$dir" == "aocl-crypto" && ! -d "$srcdir/aocl-crypto" ]]; then
+    echo ":: Manually cloning aocl-crypto with LFS smudge disabled"
+    GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/AMD/aocl-crypto.git "$srcdir/aocl-crypto"
+  fi
+}
+
+_cmake_common_flags=(
+  -DBUILD_UNIT_TESTS=OFF
+  -DCMAKE_BUILD_TYPE=Release
+  -DCMAKE_C_COMPILER=clang
+  -DCMAKE_CXX_COMPILER=clang++
+  -DCMAKE_C_FLAGS="-flto -O3 -march=native"
+  -DCMAKE_CXX_FLAGS="-flto -O3 -march=native"
+  -DCMAKE_EXE_LINKER_FLAGS="-flto"
+  -DOPENSSL_ROOT_DIR=/usr
+  -DOPENSSL_INCLUDE_DIR=/usr/include
+  -DOPENSSL_LIBRARIES=/usr/lib/libssl.so
+)
+
+_cmake_configure() {
+  local prefix="$1"
+  cmake .. "${_cmake_common_flags[@]}" -DCMAKE_INSTALL_PREFIX="$prefix"
+}
+
+_generic_cmake_build() {
+  local dir="$1"
+  local prefix="$2"
+  cd "$srcdir/$dir"
+  mkdir -p build && cd build
+  _cmake_configure "$prefix"
+  make -j$(nproc)
+}
+
+_generic_make_install() {
+  local dir="$1"
+  cd "$srcdir/$dir/build"
+  make DESTDIR="$pkgdir" install
+}
+
+build() {
+  local projects=(
+    aocl-utils aocl-libmem aocl-sparse
+    aocl-compression aocl-data-analytics
+    aocl-libm-ose aocl-crypto
+  )
+
+  local bootstrap_prefix="$srcdir/bootstrap-root"
+  mkdir -p "$bootstrap_prefix"
+
+  # First pass: Bootstrap build
+  for project in "${projects[@]}"; do
+    echo ":: Building $project for bootstrap..."
+    # Ensure a clean build directory for bootstrap
+    rm -rf "$srcdir/$project/build"
+    _generic_cmake_build "$project" "$bootstrap_prefix"
+    # Explicitly install to bootstrap_prefix
+    cd "$srcdir/$project/build"
+    make install # CMAKE_INSTALL_PREFIX should handle the prefix
+  done
+
+  # Second pass: Recompile against bootstrapped libraries
+  for project in "${projects[@]}"; do
+    echo ":: Rebuilding $project against bootstrapped libraries..."
+    rm -rf "$srcdir/$project/build"
+    mkdir -p "$srcdir/$project/build" && cd "$srcdir/$project/build"
+
+    cmake .. "${_cmake_common_flags[@]}" \
+      -DCMAKE_INSTALL_PREFIX=/usr \
+      -DCMAKE_PREFIX_PATH="$bootstrap_prefix/usr" # This is key for linking
+
+    make -j$(nproc)
+  done
+}
+
+package() {
+  local projects=(
+    aocl-utils aocl-libmem aocl-sparse
+    aocl-compression aocl-data-analytics
+    aocl-libm-ose aocl-crypto
+  )
+  for project in "${projects[@]}"; do
+    _generic_make_install "$project"
+  done
+}

@@ -1,0 +1,56 @@
+pkgname=koboldcpp-hipblas
+_pkgver=1.97.4
+pkgver=$_pkgver.yr0
+_git_pkgver=$pkgver-ROCm
+pkgrel=1
+pkgdesc="An easy-to-use AI text-generation software for GGML and GGUF models (with HIPBLAS, for ROCM)"
+arch=('x86_64')
+url="https://github.com/YellowRoseCx/koboldcpp-rocm"
+license=('AGPL-3.0-only')
+depends=('python' 'cblas' 'clblast' 'vulkan-icd-loader' 'hipblas')
+optdepends=('python-customtkinter' 'python-psutil')
+provides=("koboldcpp=$_pkgver" "koboldcpp-rocm=$_pkgver")
+conflicts=('koboldcpp')
+source=("$pkgname::git+${url}" 'koboldcpp.desktop' 'koboldcpp.png')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+build() {
+    cd "${srcdir}/${pkgname}"
+    export CC=clang
+    export CPP=clang-cpp
+    export CXX=clang++
+    export LD=lld
+    export CC_LD=lld
+    export CXX_LD=lld
+    export AR=llvm-ar
+    export NM=llvm-nm
+    export STRIP=llvm-strip
+    export OBJCOPY=llvm-objcopy
+    export OBJDUMP=llvm-objdump
+    export READELF=llvm-readelf
+    export RANLIB=llvm-ranlib
+    export HOSTCC=clang
+    export HOSTCXX=clang++
+    export HOSTAR=llvm-ar
+    export HOSTLD=lld
+    export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0 -I/usr/include"
+    export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0 -I/usr/include"
+    export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0 -I/usr/include"
+    export LDFLAGS="-fuse-ld=lld -flto -O3 -pthread -L/usr/lib"
+    make LLVM=1 LLVM_IAS=1 LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_HIPBLAS=1 PYTORCH_ROCM_ARCH=gfx803 ROC_ENABLE_PRE_VEGA=1 -j$(nproc)
+}
+
+package() {
+    cd "${srcdir}/${pkgname}"
+    install -d "$pkgdir/usr/share/koboldcpp"
+    install -Dm644 ./*.so "$pkgdir/usr/share/koboldcpp/"
+    install -Dm644 ./*.embd "$pkgdir/usr/share/koboldcpp/"
+    install -d "$pkgdir/usr/share/koboldcpp/kcpp_adapters"
+    install -m644 "kcpp_adapters"/* "$pkgdir/usr/share/koboldcpp/kcpp_adapters/"
+    install -Dm644 "koboldcpp.py" "$pkgdir/usr/share/koboldcpp/koboldcpp.py"
+    echo '#!/bin/sh' >koboldcpp
+    echo 'python /usr/share/koboldcpp/koboldcpp.py "$@"' >>koboldcpp
+    install -Dm755 koboldcpp "$pkgdir/usr/bin/koboldcpp"
+    install -Dm644 "$srcdir/koboldcpp.desktop" "$pkgdir/usr/share/applications/koboldcpp.desktop"
+    install -Dm644 "$srcdir/koboldcpp.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/koboldcpp.png"
+}

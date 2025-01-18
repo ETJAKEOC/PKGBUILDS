@@ -1,0 +1,279 @@
+pkgbase=linux-tools
+pkgname=('bootconfig' 'bpf' 'cpupower' 'hyperv' 'linux-tools-meta' 'perf' 'tmon' 'turbostat' 'usbip' 'x86_energy_perf_policy' 'intel-speed-select')
+pkgver=6.18
+pkgrel=8
+license=('GPL-2.0-only')
+arch=('x86_64')
+url='https://www.kernel.org'
+options=('!strip')
+makedepends=('git' 'asciidoc' 'xmlto' 'perl' 'python' 'python-setuptools' 'slang' 'elfutils' 'libunwind' 'numactl' 'audit' 'zstd' 'libcap'
+	'libtraceevent' 'openssl' 'clang' 'llvm-libs' 'libpfm' 'pciutils' 'glib2' 'sysfsutils' 'udev' 'ncurses' 'readline' 'zlib' 'libelf'
+	'libcap' 'python-docutils' 'libcap' 'llvm' 'clang' 'libnl')
+groups=("$pkgbase")
+source=("https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-${pkgver}-rc1.tar.gz"
+        'cpupower.default' 'cpupower.install' 'cpupower.service' 'usbipd.service' 'hv_kvp_daemon.service' 'hv_vss_daemon.service')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+  ln -sf linux-${pkgver}-rc1 linux
+  cd linux
+  local src
+  for src in "${source[@]}"; do
+    src="${src%%::*}"
+    src="${src##*/}"
+    src="${src%.xz}"
+    [[ $src = *.patch || $src = patch-* ]] || continue
+    echo ":: Applying patch $src"
+    patch -p1 -N -i "$srcdir/$src"
+  done
+  cat > tools/perf/util/PERF-VERSION-GEN << EOF
+echo '#define PERF_VERSION "$pkgver-$pkgrel"' > "\${1:-.}"/PERF-VERSION-FILE
+EOF
+}
+
+_env() {
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=ld.lld
+  export CC_LD=ld.lld
+  export CXX_LD=ld.lld
+  export AR=llvm-ar
+  export AS=llvm-as
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=ld.lld
+  export _COMMON_FLAGS="-march=znver2 -mtune=znver2 -O3 -g0"
+  export CPPFLAGS="$_COMMON_FLAGS"
+  export CFLAGS="$_COMMON_FLAGS"
+  export CXXFLAGS="$_COMMON_FLAGS"
+  export LDFLAGS="-fuse-ld=ld.lld"
+}
+
+klmake() {
+  _env
+  LLVM=1 LLVM_IAS=1 make -j$(nproc)
+}
+
+build() {
+  _env
+  echo ':: perf'
+  pushd linux/tools/perf
+  _env
+    klmake -f Makefile.perf prefix=/usr lib=lib/perf perfexecdir=lib/perf WERROR=0 NO_SDT=1 \
+    JDIR="/usr/lib/jvm/default" BUILD_BPF_SKEL=0 PYTHON=python PYTHON_CONFIG=python-config LIBPFM4=1 DESTDIR="$pkgdir" 
+  popd
+
+  echo ':: cpupower'
+  pushd linux/tools/power/cpupower
+  _env
+  klmake VERSION=$pkgver-$pkgrel
+  popd
+
+  echo ':: x86_energy_perf_policy'
+  pushd linux/tools/power/x86/x86_energy_perf_policy
+  _env
+  klmake
+  popd
+
+  echo ':: tmon'
+  pushd linux/tools/thermal/tmon
+  _env
+  klmake
+  popd
+
+  echo ':: turbostat'
+  pushd linux/tools/power/x86/turbostat
+  _env
+  klmake
+  popd
+
+  echo ':: hv'
+  pushd linux/tools/hv
+  _env
+  CFLAGS+=' -DKVP_SCRIPTS_PATH=\"/usr/lib/hypervkvpd/\"'   klmake
+  popd
+
+  echo ':: bpf'
+  pushd linux/tools/bpf
+  _env
+  klmake -C bpftool all doc
+  klmake runqslower
+  popd
+
+  echo ':: bootconfig'
+  pushd linux/tools/bootconfig
+  _env
+  klmake
+  popd
+
+  echo ':: intel-speed-select'
+  pushd linux/tools/power/x86/intel-speed-select
+  _env
+  klmake
+  popd
+
+  echo ':: usbip'
+  pushd linux/tools/usb/usbip
+  _env
+  sed -i 's,-Wall -Werror -Wextra,-fcommon,' configure.ac
+  ./autogen.sh
+  ./configure --prefix=/usr --sbindir=/usr/bin
+  klmake
+  popd
+}
+
+package_linux-tools-meta() {
+  pkgdesc='Linux kernel tools meta package'
+  groups=()
+  depends=(
+    'bootconfig'
+    'bpf'
+    'cpupower'
+    'hyperv'
+    'perf'
+    'tmon'
+    'turbostat'
+    'usbip'
+    'x86_energy_perf_policy'
+    'intel-speed-select'
+  )
+  conflicts=(
+    'acpidump'
+  )
+}
+
+package_perf() {
+  pkgdesc='Linux kernel performance auditing tool'
+  depends=('glibc' 'perl' 'python' 'slang' 'elfutils' 'libunwind' 'binutils'
+           'numactl' 'audit' 'coreutils' 'glib2' 'xz' 'zlib' 'libelf' 'bash'
+           'zstd' 'libcap' 'libtraceevent' 'openssl' 'libsframe.so' 'llvm-libs' 'libpfm')
+
+  cd linux/tools/perf
+  klmake \
+    -f Makefile.perf \
+    prefix=/usr \
+    lib=lib/perf \
+    perfexecdir=lib/perf \
+    EXTRA_CFLAGS=' -Wno-error=bad-function-cast -Wno-error=declaration-after-statement -Wno-error=switch-enum' \
+    NO_SDT=1 \
+    BUILD_BPF_SKEL=0 \
+    PYTHON=python \
+    PYTHON_CONFIG=python-config \
+    JDIR="/usr/lib/jvm/default" \
+    DESTDIR="$pkgdir" \
+    LLVM=1 \
+    LIBPFM4=1 \
+    install install-python_ext
+  cd "$pkgdir"
+  mkdir "$pkgdir/etc/ld.so.conf.d"
+  echo '/usr/lib/perf' > "$pkgdir/etc/ld.so.conf.d/$pkgname.conf"
+  install -Dm644 etc/bash_completion.d/perf usr/share/bash-completion/completions/perf
+  rm -r etc/bash_completion.d
+  find usr/share -type f -exec chmod a-x {} \;
+}
+
+package_cpupower() {
+  pkgdesc='Linux kernel tool to examine and tune power saving related features of your processor'
+  backup=('etc/default/cpupower')
+  depends=('glibc' 'bash' 'pciutils')
+  conflicts=('cpufrequtils')
+  replaces=('cpufrequtils')
+  install=cpupower.install
+
+  pushd linux/tools/power/cpupower
+  klmake \
+    DESTDIR="$pkgdir" \
+    sbindir='/usr/bin' \
+    libdir='/usr/lib' \
+    mandir='/usr/share/man' \
+    docdir='/usr/share/doc/cpupower' \
+    install install-man
+  popd
+  install -Dm 644 $pkgname.default "$pkgdir/etc/default/$pkgname"
+  install -Dm 644 $pkgname.service "$pkgdir/usr/lib/systemd/system/$pkgname.service"
+  install -Dm 755 $pkgname.systemd "$pkgdir/usr/lib/systemd/scripts/$pkgname"
+}
+
+package_x86_energy_perf_policy() {
+  pkgdesc='Read or write MSR_IA32_ENERGY_PERF_BIAS'
+  depends=('glibc')
+
+  cd linux/tools/power/x86/x86_energy_perf_policy
+  install -Dm 755 x86_energy_perf_policy "$pkgdir/usr/bin/x86_energy_perf_policy"
+  install -Dm 644 x86_energy_perf_policy.8 "$pkgdir/usr/share/man/man8/x86_energy_perf_policy.8"
+}
+
+package_usbip() {
+  pkgdesc='An USB device sharing system over IP network'
+  depends=('glibc' 'glib2' 'sysfsutils' 'systemd-libs')
+
+  pushd linux/tools/usb/usbip
+  make install DESTDIR="$pkgdir"
+  popd
+  install -Dm 644 /dev/null "$pkgdir/usr/lib/modules-load.d/$pkgname.conf"
+  printf 'usbip-core\nusbip-host\n' > "$pkgdir/usr/lib/modules-load.d/$pkgname.conf"
+  install -Dm 644 usbipd.service "$pkgdir/usr/lib/systemd/system/usbipd.service"
+}
+
+package_tmon() {
+  pkgdesc='Monitoring and Testing Tool for Linux kernel thermal subsystem'
+  depends=('glibc' 'ncurses')
+
+  cd linux/tools/thermal/tmon
+  make install INSTALL_ROOT="$pkgdir"
+}
+
+package_turbostat() {
+  pkgdesc='Report processor frequency and idle statistics'
+  depends=('glibc' 'libcap')
+
+  cd linux/tools/power/x86/turbostat
+  make install DESTDIR="$pkgdir"
+}
+
+package_hyperv() {
+  pkgdesc='Hyper-V tools'
+  depends=('glibc')
+
+  cd linux/tools/hv
+  make install DESTDIR="$pkgdir" sbindir=/usr/bin libexecdir=/usr/lib
+  for _p in hv_kvp_daemon hv_vss_daemon; do
+    install -Dm644 "$srcdir/$_p.service" "$pkgdir/usr/lib/systemd/system/$_p.service"
+  done
+}
+
+package_bpf() {
+  pkgdesc='BPF tools'
+  depends=('glibc' 'readline' 'zlib' 'libelf' 'libcap' 'zstd' 'llvm-libs' 'binutils' 'libsframe.so')
+
+  cd linux/tools/bpf
+  make runqslower_install install prefix=/usr DESTDIR="$pkgdir"
+  mv "$pkgdir"/usr/sbin/bpftool "$pkgdir"/usr/bin/bpftool
+  rmdir "$pkgdir"/usr/sbin
+  make -C bpftool doc-install prefix=/usr/share DESTDIR="$pkgdir"
+}
+
+package_bootconfig() {
+  pkgdesc='Apply, delete or show boot config to initrd'
+  depends=('glibc')
+
+  cd linux/tools/bootconfig
+  install -dm755 "$pkgdir/usr/bin"
+  make install DESTDIR="$pkgdir"
+}
+
+package_intel-speed-select() {
+  pkgdesc='Intel Speed Select'
+  depends=('libnl')
+
+  cd linux/tools/power/x86/intel-speed-select
+  make install DESTDIR="$pkgdir"
+}
