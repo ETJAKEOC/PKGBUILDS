@@ -1,6 +1,6 @@
 pkgname=upscayl
 _pkgname=Upscayl
-pkgver=2.15.1.r33.geb9f134
+pkgver=2.15.1.r38.g24bd3d3
 pkgrel=1
 _electronversion=36
 _nodeversion=23
@@ -11,7 +11,8 @@ license=('AGPL-3.0-only')
 conflicts=("${pkgname}")
 provides=("${pkgname}")
 depends=("electron${_electronversion}" 'vulkan-icd-loader')
-makedepends=('git' 'npm' 'nvm' 'elfutils' 'curl' 'gcc' 'gendesk')
+makedepends=('git' 'npm' 'nvm' 'elfutils' 'curl' 'clang' 'llvm' 'lld'
+ 'gendesk' 'python' 'node-gyp' 'pkgconf' 'mesa' 'vulkan-headers')
 source=(git+${url}.git upscayl.sh)
 sha256sums=('SKIP' 'SKIP')
 
@@ -22,38 +23,82 @@ pkgver() {
     printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
 }
 
+setup_env() {
+  export LC_ALL=C
+  export CC=clang
+  export CXX=clang++
+  export CFLAGS="-march=znver2 -mtune=znver2 -O3 -pipe -fno-plt -flto -fvisibility=hidden"
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS="-fuse-ld=lld -flto"
+  export NM=llvm-nm
+  export AR=llvm-ar
+  export RANLIB=llvm-ranlib
+  export NODE_OPTIONS="--max-old-space-size=8192 --trace-warnings"
+  export WEBPACK_WORKER_POOL=8
+  export YARN_CACHE_FOLDER="$srcdir/.yarn-cache"
+  export YARN_ENABLE_IMMUTABLE_INSTALLS=1
+}
+
 prepare() {
     cd "${srcdir}/${pkgname}"
-    rm *lock*
-    sed -e "
-        s/@electronversion@/${_electronversion}/g
-        s/@appname@/${pkgname}/g
-        s/@runname@/app.asar/g
-        s/@cfgdirname@/${_pkgname}/g
-        s/@options@/env ELECTRON_OZONE_PLATFORM_HINT=auto/g
-    " -i "${srcdir}/${pkgname}.sh"
-    local NVM_DIR="/STORAGE/HOME/jake/.nvm"
-    source /usr/share/nvm/init-nvm.sh || [[ $? != 1 ]]
-    nvm install "${_nodeversion}"
-    nvm use "${_nodeversion}"
-    npm install --save-dev npm@11.3.0 npm-check-updates ajv prettier electron-rebuild webpack webpack-cli typescript eslint-plugin-import eslint-plugin-node lru-cache
-    ncu -u
-    npm audit fix --force
-    gendesk -q -f -n --pkgname="${pkgname}" --pkgdesc="${pkgdesc}" --categories="Graphics" --name="${_pkgname}" --exec="${pkgname} %U"
-    electronDist="/usr/lib/electron${_electronversion}"
+    setup_env
+    rm -f package-lock.json yarn.lock
+
+npm install --save-dev --legacy-peer-deps --loglevel=error \
+    typescript@4.9.5 \
+    i18next@23.16.8 \
+    i18next-parser@9.3.0 \
+    @typescript-eslint/parser@8.34.1 \
+    @typescript-eslint/eslint-plugin@8.34.1 \
+    eslint@8.57.1 \
+    eslint-config-next@15.3.4 \
+    next \
+    npm \
+    ajv \
+    prettier \
+    electron-rebuild \
+    electron-builder \
+    webpack \
+    webpack-cli \
+    webpack-dev-server \
+    babel-loader \
+    @babel/core \
+    @babel/preset-env \
+    css-loader \
+    style-loader \
+    file-loader \
+    @types/node \
+    eslint-plugin-import \
+    eslint-plugin-node \
+    postcss \
+    postcss-loader \
+    lru-cache \
+    source-map-support \
+    webpack-bundle-analyzer
+
+    npm install --force --ignore-scripts --legacy-peer-deps --loglevel=error
+    sed -i 's/case "x32":/case "x32":\n    case "ia32":/' electron/utils/get-device-specs.ts
+    gendesk -q -f -n \
+        --pkgname="${pkgname}" \
+        --pkgdesc="${pkgdesc}" \
+        --categories="Graphics" \
+        --name="${_pkgname}" \
+        --exec="${pkgname} %U"
     export ELECTRON_SKIP_BINARY_DOWNLOAD=1
     export SYSTEM_ELECTRON_VERSION="$(electron${_electronversion} -v | sed 's/v//g')"
-    HOME="${srcdir}/.electron-gyp"
-    sed -i "s/org.${pkgname}.${_pkgname}/${pkgname}/g" flatpak/"org.${pkgname}.${_pkgname}".metainfo.xml
-    npm install
+    electronDist="/usr/lib/electron${_electronversion}"
+    sed -i "s/org.${pkgname}.${_pkgname}/${pkgname}/g" \
+        flatpak/"org.${pkgname}.${_pkgname}".metainfo.xml
 }
 
 build() {
     cd "${srcdir}/${pkgname}"
-    NODE_ENV=production     npm run tsc
-    NODE_ENV=production     npm audit fix
-    NODE_ENV=production     npm run build
-    NODE_ENV=production     npm exec -c "electron-builder --linux dir -c.electronDist=${electronDist}"
+    setup_env
+    npm install --legacy-peer-deps --loglevel=error
+    npm run tsc --legacy-peer-deps
+    npm audit fix
+    npm run build --legacy-peer-deps
+    npm exec -c "electron-builder --linux dir -c.electronDist=${electronDist}"
 }
 
 package(){
@@ -61,6 +106,6 @@ package(){
     install -Dm755 -d "${pkgdir}/usr/lib/${pkgname}"
     cp -Pr --no-preserve=ownership "${srcdir}/${pkgname//-/.}/dist/linux-"*/resources/* "${pkgdir}/usr/lib/${pkgname}"
     install -Dm644 "${srcdir}/${pkgname//-/.}/build/icon.png" "${pkgdir}/usr/share/pixmaps/${pkgname}.png"
-    install -Dm644 "${srcdir}/${pkgname}.desktop" -t "${pkgdir}/usr/share/applications"
+    install -Dm644 "${srcdir}/${pkgname}/upscayl.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
     install -Dm644 "${srcdir}/${pkgname//-/.}/flatpak/org.${pkgname}.${_pkgname}.metainfo.xml" "${pkgdir}/usr/share/metainfo/${pkgname}.metainfo.xml"
 }
