@@ -1,5 +1,5 @@
 pkgname=torbrowser-etjakeoc
-pkgver=14.5.4
+pkgver=14.5.5
 pkgrel=1
 pkgdesc="Custom compile of the TOR browser, verified against the TOR keys, from ETJAKEOC"
 arch=('any')
@@ -9,7 +9,7 @@ conflicts=("${pkgname%}" "torbrowser-launcher" "torbrowser-launcher-git")
 options=('!strip')
 source=(${url}/${pkgver}/tor-browser-linux-x86_64-${pkgver}.tar.xz
 	${url}/${pkgver}/tor-browser-linux-x86_64-${pkgver}.tar.xz.asc
-	https://vectorified.com/images/tor-browser-icon-23.jpg)
+	'tor.png')
 sha256sums=('SKIP' 'SKIP' 'SKIP')
 
 prepare() {
@@ -41,14 +41,14 @@ prepare() {
 package() {
 	cd ${srcdir}/tor-browser
 
-	cp ${srcdir}/tor-browser-icon-23.jpg ${pkgdir}/opt/tor-browser/icons/tor.png
-
 	# Install to /opt/tor-browser
 	install -dm755 ${pkgdir}/opt/tor-browser
 	cp -r * ${pkgdir}/opt/tor-browser
 
 	# Create a desktop entry for convenience
 	install -Dm644 ${srcdir}/tor-browser/start-tor-browser.desktop ${pkgdir}/usr/share/applications/tor-browser.desktop
+	mkdir -p ${pkgdir}/opt/tor-browser/icons
+	cp ${srcdir}/tor.png ${pkgdir}/opt/tor-browser/icons/tor.png
 
 	# Create a symlink for easier command-line launching
 	install -dm755 ${pkgdir}/usr/bin
