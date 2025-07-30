@@ -4,7 +4,7 @@ provides=('llvm' 'llvm-git' 'llvm-libs-git' 'compiler-rt' 'clang' 'clang-analyze
  'clang-tools-extra' 'clang-libs' 'clang-opencl-headers')
 conflicts=('llvm' 'llvm-git' 'llvm-libs-git' 'compiler-rt' 'clang' 'clang-analyzer'
  'clang-tools-extra' 'clang-libs' 'clang-opencl-headers')
-pkgver=21.0.0_r542753.6c2aa37fb1fd
+pkgver=21.0.0_r544735.be200e2b80c5
 pkgrel=1
 arch=('x86_64')
 url="https://llvm.org/"
@@ -20,7 +20,7 @@ optdepends=('python: for using lit (LLVM Integrated Tester)'
 source=("git+https://github.com/llvm/llvm-project.git")
 sha512sums=('SKIP')
 options=('!strip')
-_cores="20"
+_cores="$(nproc)"
 export NINJAFLAGS="-j ${_cores} -l ${_cores}"
 export LITFLAGS="-j ${_cores}"
 
@@ -143,7 +143,25 @@ build() {
 }
 
 package_llvm-git() {
-    pkgdesc="Collection of modular and reusable compiler and toolchain technologies, trimmed down git version"
-    DESTDIR="$pkgdir" ninja $NINJAFLAGS -C _build install
-    install -Dm644 "$srcdir"/llvm-project/llvm/LICENSE.TXT "$pkgdir"/usr/share/licenses/$pkgname/LICENSE.TXT
+  DESTDIR="$pkgdir" ninja $NINJAFLAGS -C _build install
+  find "$pkgdir/usr/lib" -type f \( -name '*.so' -o -name '*.so.*' \) -delete
+  find "$pkgdir/usr/lib" -type f -name '*.a' -delete  # static libs belong in llvm-libs too
+  rm -rf "$pkgdir/usr/lib/clang"
+  find "$pkgdir/usr/lib" -type f -name 'libclang*.so*' -delete
+}
+
+package_llvm-libs-git() {
+  DESTDIR="$pkgdir" ninja $NINJAFLAGS -C _build install
+  rm -rf "$pkgdir/usr/bin"
+  rm -rf "$pkgdir/usr/include/clang/tools"
+  if [ ! -d "$pkgdir/usr/lib/clang" ]; then
+    mkdir -p "$pkgdir/usr/lib"
+    cp -r "$srcdir/llvm-project/llvm/lib/clang" "$pkgdir/usr/lib/"
+  fi
+}
+
+package_clang-tools-extra-git() {
+  DESTDIR="$pkgdir" ninja $NINJAFLAGS -C _build install
+  rm -f "$pkgdir/usr/bin/clang" "$pkgdir/usr/bin/clang++"
+  rm -rf "$pkgdir/usr/include/clang/tools/extra" # optional cleanup
 }

@@ -1,5 +1,5 @@
 pkgname=android-messages-desktop
-pkgver=5.7.1.r0.g15b8a6c
+pkgver=5.7.1.r3.g13e1259
 pkgrel=1
 _electronversion=36
 pkgdesc="Android Messages as a cross-platform desktop app"

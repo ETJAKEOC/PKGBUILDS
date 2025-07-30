@@ -7,7 +7,7 @@ pkgname=(
   qemu-guest-agent-git
 )
 pkgdesc="A generic and open source machine emulator and virtualizer. Git version."
-pkgver=10.0.0.r1724.gf9a3def17b
+pkgver=10.0.0.r1987.ge240f6cc25
 pkgrel=1
 epoch=25
 arch=(i686 x86_64)
@@ -129,9 +129,19 @@ build() (
   --localstatedir=/var \
   --libexecdir=/usr/lib/qemu \
   --smbd=/usr/bin/smbd \
+  --enable-bzip2 \
+  --enable-lzo \
+  --enable-snappy \
+  --enable-zstd \
   --enable-modules \
   --enable-guest-agent \
+  --enable-tools \
+  --enable-numa \
+  --enable-curses \
   --enable-sdl \
+  --enable-vde \
+  --enable-slirp \
+  --enable-bpf \
   --disable-werror \
   --enable-strip \
   --enable-gtk \
@@ -140,12 +150,14 @@ build() (
   --enable-vhost-net \
   --enable-spice \
   --enable-opengl \
+  --enable-fuse \
   --enable-user \
   --enable-virglrenderer \
   --enable-kvm \
   --enable-lto \
   --enable-cap-ng \
-  --target-list=x86_64-softmmu,aarch64-softmmu,x86_64-linux-user \
+  --enable-libiscsi \
+  --target-list=x86_64-softmmu,aarch64-softmmu,arm-softmmu,x86_64-linux-user \
   --audio-drv-list=pipewire,pa \
   --cc=clang \
   --cxx=clang++ \
