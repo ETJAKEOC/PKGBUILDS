@@ -1,7 +1,7 @@
 pkgbase=systemd-git
 pkgname=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
 pkgdesc='systemd (git version)'
-pkgver=258.devel.r82274.16fe0951782
+pkgver=258.rc3.r83398.46a688c5598
 pkgrel=1
 arch=('x86_64')
 license=('LGPL-2.1-or-later')
