@@ -60,7 +60,6 @@ _env() {
   export HOSTCXX=/usr/bin/clang++
   export HOSTAR=llvm-ar
   export HOSTLD=lld
-  export LLVM_VERSION=21
   export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
   export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -fuse-linker-plugin -fno-plt -fomit-frame-pointer -fvisibility=hidden -ffunction-sections -fdata-sections -fno-semantic-interposition -g0"
   export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -fuse-linker-plugin -fno-plt -fomit-frame-pointer -fvisibility=hidden -ffunction-sections -fdata-sections -fno-semantic-interposition -g0"
