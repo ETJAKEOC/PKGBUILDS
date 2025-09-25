@@ -1,0 +1,103 @@
+# Maintainer: Jake <ETJAKEOC@gmail.com>
+pkgname=electron-git-llvm-full-lto
+pkgver=0.0.0.r$(date +%s)
+pkgrel=1
+pkgdesc="Electron (git) built with clang/LLVM and full LTO optimizations tuned for Ryzen 9 3900XT"
+arch=('x86_64')
+url="https://github.com/electron/electron"
+license=('MIT')
+makedepends=(
+  'git' 'nodejs' 'python' 'python-pip' 'pkg-config'
+  'clang' 'llvm' 'lld' 'ninja' 'gn' 'depot_tools' 'gtk3'
+  'yasm' 'glibc' 'libx11' 'libxkbcommon' 'libxss' 'libxrandr'
+)
+optdepends=('ccache: speed builds' 'binutils: for some host utilities')
+source=("$pkgname::git+https://github.com/electron/electron.git")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/electron" || return 1
+
+  # Basic env: prefer clang from host llvm package and lld linker
+  export CC=clang
+  export CXX=clang++
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export RANLIB=llvm-ranlib
+  export STRIP=llvm-strip
+  export LD=ld.lld
+
+  # Compiler flags tuned for Ryzen 9 3900XT (Zen2). Adjust as you like:
+  export CFLAGS="-O3 -march=znver2 -mtune=znver2 -fomit-frame-pointer -fno-exceptions -fno-rtti -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -fPIC -flto=full"
+  export CXXFLAGS="${CFLAGS} -fvisibility=hidden"
+  export LDFLAGS="-fuse-ld=lld -Wl,--gc-sections -flto=full"
+
+  # If you hit memory/linker issues try: -flto=thin and remove -flto=full
+  # or use Thin LTO: export CFLAGS+="-flto=thin" etc.
+
+  # Use ninja + GN. Electron uses Chromium's GN; build-tools repo contains helpers.
+  # Ensure depot_tools are in PATH (or install from makedepends)
+  export PATH="/usr/lib/depot_tools:$PATH"
+
+  # Bootstrap / sync sources (this is simplified — real electron build may require running
+  # helper scripts to sync precise Chromium/Node versions)
+  # Upstream provides build instructions — follow them if this step fails.
+  python scripts/bootstrap.py || true  # placeholder; upstream tooling varies by version
+
+  # Generate GN args. We force clang toolchain and full LTO flags into GN args.
+  mkdir -p out/Release
+  cat > out/Release/args.gn <<EOF
+is_debug = false
+is_component_build = false
+is_official_build = true
+use_clang = true
+clang_base_path = ""
+target_cpu = "x64"
+enable_nacl = false
+treat_warnings_as_errors = false
+
+# Forcing LTO. If Chromium/electron build supports these GN args they will be honored;
+# otherwise we rely on CC/CXX/LDFLAGS exported above.
+use_thin_lto = false
+use_lld = true
+clang_use_thin_lto = false
+
+# Customize for speed
+symbol_level = 0
+dcheck_always_on = false
+EOF
+
+  # Generate ninja files from GN
+  gn gen out/Release --args="is_debug=false use_clang=true use_lld=true"
+
+  # Build with ninja (parallel jobs equal to number of logical cores)
+  ninja -C out/Release electron -v -j"$(nproc)"
+
+  # If build target is different for current electron version, adjust above.
+}
+
+package() {
+  cd "$srcdir/electron" || return 1
+
+  # install built artifacts into $pkgdir. This is highly simplified:
+  install -d "$pkgdir/usr/lib/electron"
+  cp -a out/Release/* "$pkgdir/usr/lib/electron/"
+
+  # add a small wrapper binary (or desktop file) — sample wrapper:
+  install -d "$pkgdir/usr/bin"
+  cat > "$pkgdir/usr/bin/electron-llvm-lto" <<'EOF'
+#!/bin/sh
+exec /usr/lib/electron/electron "$@"
+EOF
+  chmod +x "$pkgdir/usr/bin/electron-llvm-lto"
+
+  # desktop file
+  install -d "$pkgdir/usr/share/applications"
+  cat > "$pkgdir/usr/share/applications/electron-llvm-lto.desktop" <<EOF
+[Desktop Entry]
+Name=Electron (llvm full-lto)
+Exec=electron-llvm-lto %U
+Type=Application
+Categories=Development;Utility;
+EOF
+}

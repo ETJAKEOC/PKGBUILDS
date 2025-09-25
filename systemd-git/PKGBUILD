@@ -1,7 +1,7 @@
 pkgbase=systemd-git
 pkgname=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
 pkgdesc='systemd (git version)'
-pkgver=258.rc3.r83398.46a688c5598
+pkgver=259.devel.r83840.d5eb732724b
 pkgrel=1
 arch=('x86_64')
 license=('LGPL-2.1-or-later')
@@ -14,7 +14,8 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
              'bash-completion' 'p11-kit' 'systemd' 'libfido2' 'tpm2-tss' 'rsync'
              'bpf' 'libbpf' 'clang' 'llvm' 'curl' 'gnutls' 'python-pyelftools'
              'libpwquality' 'qrencode' 'lib32-gcc-libs' 'python-pefile')
-conflicts=("mkinitcpio<38-1")
+conflicts=("mkinitcpio<38-1" 'systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
+provides=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
 options=('!strip')
 source=("$pkgbase::git+${url}"
         'systemd-user.pam'
@@ -60,14 +61,15 @@ _env() {
   export HOSTCXX=/usr/bin/clang++
   export HOSTAR=llvm-ar
   export HOSTLD=lld
-  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
-  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -fuse-linker-plugin -fno-plt -fomit-frame-pointer -fvisibility=hidden -ffunction-sections -fdata-sections -fno-semantic-interposition -g0"
-  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -fuse-linker-plugin -fno-plt -fomit-frame-pointer -fvisibility=hidden -ffunction-sections -fdata-sections -fno-semantic-interposition -g0"
-  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -Wl,--icf=all -fuse-ld=lld -flto -O3 -pthread"
-  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker-plugin-lto -C panic=abort -C debuginfo=0 -C strip=debuginfo"
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto=full -g0 -I/usr/include"
+  export CFLAGS="-march=znver2 -mtune=znver2 -O3 -flto=full -fomit-frame-pointer -fstrict-aliasing -funroll-loops -fvectorize -fwhole-program-vtables -fmerge-all-constants -fno-math-errno -fno-trapping-math -fno-signed-zeros -fno-rounding-math -fno-strict-overflow -fvisibility=hidden -fno-semantic-interposition -I/usr/include/freetype2 -I/usr/include/SDL2"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -O3 -flto=full -fomit-frame-pointer -fstrict-aliasing -funroll-loops -fvectorize -fwhole-program-vtables -fmerge-all-constants -fno-math-errno -fno-trapping-math -fno-signed-zeros -fno-rounding-math -fno-strict-overflow -fvisibility=hidden -fno-semantic-interposition -I/usr/include/freetype2 -I/usr/include/SDL2"
+  export LDFLAGS="-fuse-ld=lld -flto=full -O3 -Wl,--icf=all"
+  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker=clang -C linker-plugin-lto -C panic=abort -C debuginfo=0 -C strip=debuginfo"
   export DEBUG_CFLAGS="-fasynchronous-unwind-tables -g0"
   export DEBUG_CXXFLAGS="-fasynchronous-unwind-tables -g0"
   export DEBUG_RUSTFLAGS="-C debuginfo=0"
+  export XML_CATALOG_FILES=/usr/share/xml/docbook/xsl-stylesheets/catalog.xml
 }
 
 build() {
@@ -76,7 +78,7 @@ build() {
     -Dversion-tag="${pkgver}-${pkgrel}-arch"
     -Dvcs-tag=true
     -Dshared-lib-tag="${pkgver}-${pkgrel}"
-    -Dmode=developer
+    -Dmode=release
     -Dapparmor=disabled
     -Dbootloader=enabled
     -Dxenctrl=disabled
@@ -85,7 +87,7 @@ build() {
     -Dinstall-tests=false
     -Dlibidn2=enabled
     -Dlz4=enabled
-    -Dman=enabled
+    -Dman=disabled
     -Dselinux=disabled
     -Ddbuspolicydir=/usr/share/dbus-1/system.d
     -Ddefault-dnssec=no
@@ -175,19 +177,20 @@ package_systemd-git() {
   mv "$pkgdir"/usr/lib/lib{nss,systemd,udev}*.so* systemd-libs/lib/
   mv "$pkgdir"/usr/lib/pkgconfig systemd-libs/lib/pkgconfig
   mv "$pkgdir"/usr/include systemd-libs/include
-  mv "$pkgdir"/usr/share/man/man3 systemd-libs/man3
+#  mv "$pkgdir"/usr/share/man/man3 systemd-libs/man3
 
   # ukify shipped in separate package
-  install -d -m0755 systemd-ukify/{bin,systemd,man1,install.d}
+  install -d -m0755 systemd-ukify/{bin,systemd,install.d}
+#  install -d -m0755 systemd-ukify/{bin,systemd,man1,install.d}
   mv "$pkgdir"/usr/bin/ukify systemd-ukify/bin/
   mv "$pkgdir"/usr/lib/systemd/ukify systemd-ukify/systemd/
-  mv "$pkgdir"/usr/share/man/man1/ukify.1 systemd-ukify/man1/
+#  mv "$pkgdir"/usr/share/man/man1/ukify.1 systemd-ukify/man1/
   # we move the ukify hook itself, but keep 90-uki-copy.install in place,
   # because there are other ways to generate UKIs w/o ukify, e.g. w/ mkinitcpio
   mv "$pkgdir"/usr/lib/kernel/install.d/60-ukify.install systemd-ukify/install.d
 
   # manpages shipped with systemd-sysvcompat
-  rm "$pkgdir"/usr/share/man/man8/{halt,poweroff,reboot,shutdown}.8
+#  rm "$pkgdir"/usr/share/man/man8/{halt,poweroff,reboot,shutdown}.8
 
   # executable (symlinks) shipped with systemd-sysvcompat
   rm "$pkgdir"/usr/bin/{halt,init,poweroff,reboot,shutdown}
@@ -240,7 +243,7 @@ package_systemd-libs-git() {
   install -d -m0755 "$pkgdir"/usr/share/man
   mv systemd-libs/lib "$pkgdir"/usr/lib
   mv systemd-libs/include "$pkgdir"/usr/include
-  mv systemd-libs/man3 "$pkgdir"/usr/share/man/man3
+#  mv systemd-libs/man3 "$pkgdir"/usr/share/man/man3
 }
 
 package_systemd-sysvcompat-git() {
@@ -251,8 +254,8 @@ package_systemd-sysvcompat-git() {
   depends=("systemd-git=${pkgver}")
   provides=("systemd-sysvcompat=${pkgver}")
 
-  install -D -m0644 -t "$pkgdir"/usr/share/man/man8 \
-    build/man/{halt,poweroff,reboot,shutdown}.8
+#  install -D -m0644 -t "$pkgdir"/usr/share/man/man8 \
+#    build/man/{halt,poweroff,reboot,shutdown}.8
 
   install -d -m0755 "$pkgdir"/usr/bin
   ln -s ../lib/systemd/systemd "$pkgdir"/usr/bin/init
@@ -271,9 +274,10 @@ package_systemd-ukify-git() {
   optdepends=('python-pillow: Show the size of splash image'
               'sbsigntools: Sign the embedded kernel')
 
+  install -d -m0755 "$pkgdir"/usr/{lib/kernel}
   install -d -m0755 "$pkgdir"/usr/{lib/kernel,share/man}
   mv systemd-ukify/bin "$pkgdir"/usr/bin
   mv systemd-ukify/systemd "$pkgdir"/usr/lib/systemd
-  mv systemd-ukify/man1 "$pkgdir"/usr/share/man/man1
+#  mv systemd-ukify/man1 "$pkgdir"/usr/share/man/man1
   mv systemd-ukify/install.d "$pkgdir"/usr/lib/kernel/install.d
 }

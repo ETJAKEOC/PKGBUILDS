@@ -33,31 +33,6 @@ prepare() {
 }
 build() {
   cd "$srcdir"
-
-        export CC=/usr/bin/clang
-        export CPP=/usr/bin/clang-cpp
-        export CXX=/usr/bin/clang++
-        export LD=lld
-        export CC_LD=lld
-        export CXX_LD=lld
-        export AR=llvm-ar
-        export NM=llvm-nm
-        export STRIP=llvm-strip
-        export OBJCOPY=llvm-objcopy
-        export OBJDUMP=llvm-objdump
-        export READELF=llvm-readelf
-        export RANLIB=llvm-ranlib
-        export HOSTCC=/usr/bin/clang
-        export HOSTCXX=/usr/bin/clang++
-        export HOSTAR=llvm-ar
-        export HOSTLD=lld
-
-        export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -ftree-vectorize"
-        export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections"
-        export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -pthread -fPIC -g0 -fno-plt -fvisibility=hidden -fomit-frame-pointer -ftree-vectorize -mavx2 -ffunction-sections -fdata-sections"
-        export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -O3 -pipe -pthread"
-        export RUSTFLAGS=" -C link-dead-code=off -C opt-level=3 -C target-cpu=znver2 -C codegen-units=4 -C linker-plugin-lto -C panic=abort -C lto -C debuginfo=1 "
-
   cmake -B build -S "$pkgname-manifest" -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=None -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -Wno-dev
   cmake --build build
 }

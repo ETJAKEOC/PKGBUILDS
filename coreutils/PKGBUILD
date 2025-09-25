@@ -30,6 +30,7 @@ prepare() {
 
 build() {
   cd "${pkgname}"
+  source /etc/environment
   ./configure \
     --prefix=/usr \
     --libexecdir=/usr/lib \

@@ -1,8 +1,8 @@
 pkgname=upscayl
 _pkgname=Upscayl
-pkgver=2.15.1.r38.g24bd3d3
+pkgver=2.15.1.r44.gb45bc9b
 pkgrel=1
-_electronversion=36
+_electronversion=37
 _nodeversion=23
 pkgdesc="Free and Open Source AI Image Upscaler.(Use system-wide electron)"
 arch=('x86_64')
@@ -25,14 +25,6 @@ pkgver() {
 
 setup_env() {
   export LC_ALL=C
-  export CC=clang
-  export CXX=clang++
-  export CFLAGS="-march=znver2 -mtune=znver2 -O3 -pipe -fno-plt -flto -fvisibility=hidden"
-  export CXXFLAGS="$CFLAGS"
-  export LDFLAGS="-fuse-ld=lld -flto"
-  export NM=llvm-nm
-  export AR=llvm-ar
-  export RANLIB=llvm-ranlib
   export NODE_OPTIONS="--max-old-space-size=8192 --trace-warnings"
   export WEBPACK_WORKER_POOL=8
   export YARN_CACHE_FOLDER="$srcdir/.yarn-cache"
@@ -96,7 +88,6 @@ build() {
     setup_env
     npm install --legacy-peer-deps --loglevel=error
     npm run tsc --legacy-peer-deps
-    npm audit fix
     npm run build --legacy-peer-deps
     npm exec -c "electron-builder --linux dir -c.electronDist=${electronDist}"
 }

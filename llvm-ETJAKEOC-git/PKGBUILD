@@ -8,7 +8,7 @@ pkgname=(
   'polly-git'
   'clang-tools-extra-git'
 )
-pkgver=llvmorg.22.init.r3573.ge50372c14c07
+pkgver=llvmorg.22.init.r5133.g3134e696e4d1
 pkgrel=1
 arch=('x86_64')
 url="https://llvm.org/"
@@ -50,7 +50,7 @@ build() {
   # These flags are optimized for a Ryzen 9 3900XT.
   # For a more generic/distributable build, consider changing to:
   # -march=x86-64-v3 -O2 -pipe
-  local _native_flags="-march=znver2 -mtune=znver2 -O3 -pipe"
+  local _native_flags="-march=znver2 -mtune=znver2 -O3 -pipe -I/usr/include"
 
   local cmake_args=(
     # --- Build System ---
@@ -65,7 +65,7 @@ build() {
     -DLLVM_USE_LINKER=lld
     -DCMAKE_C_FLAGS="${_native_flags}"
     -DCMAKE_CXX_FLAGS="${_native_flags}"
-    -DCMAKE_EXE_LINKER_FLAGS="-Wl,-O1,--sort-common,--as-needed"
+    -DCMAKE_EXE_LINKER_FLAGS="-Wl,-O1,--sort-common,--as-needed -L/usr/lib"
     -DLLVM_ENABLE_LTO=Full
 
     # --- Build Optimizations ---
@@ -75,11 +75,13 @@ build() {
 
     # --- Enabled Projects & Runtimes ---
     -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;polly;mlir"
-    -DLLVM_ENABLE_RUNTIMES="compiler-rt;libclc;libunwind;openmp"
+    -DLLVM_ENABLE_RUNTIMES="compiler-rt;libclc;libcxx;libcxxabi;libunwind;openmp"
+    -DLIBCXX_HAS_GCC_S_LIB=OFF
 
     # --- Target Architectures ---
-    -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;AMDGPU;BPF"
+    -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;AMDGPU;BPF;WebAssembly"
     -DLLVM_DEFAULT_TARGET_TRIPLE="x86_64-pc-linux-gnu"
+    -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=DirectX
 
     # --- Feature Flags ---
     -DLLVM_ENABLE_RTTI=ON

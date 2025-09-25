@@ -1,7 +1,7 @@
 pkgname=android-messages-desktop
 pkgver=5.7.1.r3.g13e1259
 pkgrel=1
-_electronversion=36
+_electronversion=37
 pkgdesc="Android Messages as a cross-platform desktop app"
 arch=('x86_64')
 url="https://github.com/OrangeDrangon/android-messages-desktop"
@@ -29,7 +29,7 @@ prepare() {
 build() {
   export CC=clang
   export CXX=clang++
-  export CFLAGS="-march=znver2 -mtune=znver2 -O3 -pipe -fno-plt -flto -fvisibility=hidden"
+  export CFLAGS="-march=znver2 -mtune=znver2 -O3 -pipe -flto"
   export CXXFLAGS="$CFLAGS"
   export LDFLAGS="-fuse-ld=lld -flto"
   export NM=llvm-nm

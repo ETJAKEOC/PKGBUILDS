@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=EveryCircuit
+Exec=/usr/bin/everycircuit
+Icon=/usr/share/pixmaps/everycircuit.png
+Type=Application
+Categories=Education;Electronics;

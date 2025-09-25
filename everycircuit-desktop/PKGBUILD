@@ -1,0 +1,38 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=everycircuit-desktop
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Native-like EveryCircuit wrapper using Electron"
+arch=('x86_64')
+url="https://everycircuit.com/"
+license=('GPL')
+depends=('electron' 'nodejs')
+source=('main.js' 'package.json' 'everycircuit.desktop' 'everycircuit.png')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+build() {
+    cd "$srcdir"
+    npm install --production
+}
+
+package() {
+    cd "$srcdir"
+
+    # Copy your app files
+    mkdir -p "$pkgdir/usr/share/everycircuit"
+    cp -r main.js package.json node_modules "$pkgdir/usr/share/everycircuit/"
+
+    # Create wrapper script for /usr/bin/everycircuit
+    mkdir -p "$pkgdir/usr/bin"
+    cat > "$pkgdir/usr/bin/everycircuit" <<'EOF'
+#!/bin/bash
+exec /usr/bin/electron /usr/share/everycircuit/main.js "$@"
+EOF
+
+    # Make wrapper executable
+    chmod +x "$pkgdir/usr/bin/everycircuit"
+
+    # Install desktop entry and icon
+    install -Dm644 everycircuit.desktop "$pkgdir/usr/share/applications/everycircuit.desktop"
+    install -Dm644 everycircuit.png "$pkgdir/usr/share/pixmaps/everycircuit.png"
+}

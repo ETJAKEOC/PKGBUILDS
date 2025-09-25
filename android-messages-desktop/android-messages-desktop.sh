@@ -1,7 +1,7 @@
 #!/bin/bash
 export ELECTRON_DISABLE_SECURITY_WARNINGS=true
 
-exec /usr/lib/electron36/electron \
+exec /usr/bin/electron \
   --force-device-scale-factor=1.77 \
   --enable-features=UseOzonePlatform \
   --ozone-platform=wayland \

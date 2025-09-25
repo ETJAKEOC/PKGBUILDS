@@ -58,3 +58,5 @@ mcpelauncher-ui/playdl-signin-ui-qt/
 qemu-git/qemu/
 vkd3d-git/src/
 vkd3d-git/vkd3d/
+*/pkg
+*/src
