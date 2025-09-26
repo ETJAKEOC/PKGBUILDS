@@ -1,6 +1,10 @@
 [Desktop Entry]
 Name=EveryCircuit
-Exec=/usr/bin/everycircuit
-Icon=/usr/share/pixmaps/everycircuit.png
+GenericName=Circuit Simulator
+Comment=Native-like EveryCircuit wrapper using Electron
+Exec=everycircuit %U
+Icon=everycircuit
 Type=Application
-Categories=Education;Electronics;
+Categories=Education;Electronics;Science;
+StartupNotify=true
+StartupWMClass=everycircuit
