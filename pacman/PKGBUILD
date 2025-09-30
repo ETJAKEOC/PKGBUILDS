@@ -1,6 +1,6 @@
 pkgname=pacman-ETJAKEOC
-pkgver=7.0.0
-pkgrel=0
+pkgver=7.0.0.r79.g655be2f
+pkgrel=1
 pkgdesc="A library-based package manager with dependency support - with proper support, no Rust ever!"
 arch=('x86_64')
 url="https://www.archlinux.org/pacman/"
@@ -25,10 +25,10 @@ pkgver() {
 build() {
   cd "$srcdir/pacman"
 
-  arch-meson --prefix=/usr \
+  arch-meson \
         --buildtype=plain \
-        -Ddoc=enabled \
-        -Ddoxygen=enabled \
+        -Ddoc=disabled \
+        -Ddoxygen=disabled \
         -Dscriptlet-shell=/usr/bin/bash \
         -Dldconfig=/usr/bin/ldconfig \
         build
