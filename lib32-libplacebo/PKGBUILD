@@ -1,0 +1,65 @@
+_pkgbasename=libplacebo
+pkgname=lib32-$_pkgbasename
+pkgver=7.351.0
+pkgrel=1
+pkgdesc='Reusable library for GPU-accelerated video/image rendering primitives (32bit)'
+url='https://github.com/haasn/libplacebo'
+arch=('x86_64')
+license=('LGPL2.1-or-later')
+depends=(
+        "$_pkgbasename>=${pkgver}"
+#        "$_pkgbasename"
+        'lib32-vulkan-icd-loader>=1.2.176'
+        'lib32-glslang>=8.13.3559'
+        'lib32-lcms2'
+        'lib32-shaderc'
+        'lib32-glibc'
+        'lib32-gcc-libs'
+        'lib32-libunwind'
+        'lib32-libdovi'
+#        'lib32-xxhash'
+        )
+makedepends=(
+        'glad' 
+        'meson'
+#        'meson-cross-x86-linux-gnu>=1.0.4'
+        'libglvnd'
+        'ninja'
+        'nuklear'
+        'python'
+        'python-jinja'
+        'python-mako'
+        'python-markupsafe' 
+        'python-setuptools' 
+        'vulkan-headers'
+        )
+provides=('libplacebo.so')
+source=(git+https://code.videolan.org/videolan/libplacebo.git)
+sha512sums=('SKIP')
+
+build() {
+  export CC="clang -m32"
+  export CXX="clang++ -m32"
+  export PKG_CONFIG_PATH="/usr/lib32/pkgconfig"
+  export CFLAGS+=" ${CPPFLAGS}"
+  export CXXFLAGS+=" ${CPPFLAGS} -I/usr/include/glslang"
+ 
+  cd ${_pkgbasename}
+  arch-meson build \
+    --prefix=/usr \
+    --libdir=/usr/lib32 \
+    -D tests=false \
+    -D vulkan=enabled \
+    -D glslang=enabled \
+    -D shaderc=enabled \
+    -D lcms=enabled \
+    -D d3d11=disabled \
+    -D demos=false
+
+ ninja -C build
+}
+package() {
+  cd ${_pkgbasename}
+
+  DESTDIR=$"pkgdir" ninja install -C build
+}

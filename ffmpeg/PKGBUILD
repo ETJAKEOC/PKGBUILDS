@@ -1,6 +1,6 @@
 pkgname=ffmpeg
-pkgver=7.1
-pkgrel=10
+pkgver=8.1.dev.630.g635cb4543f
+pkgrel=1
 epoch=2
 pkgdesc='Complete solution to record, convert and stream audio and video'
 arch=(x86_64)
@@ -82,6 +82,7 @@ makedepends=(
   amf-headers
   avisynthplus
   clang
+  ffnvcodec-headers
   frei0r-plugins
   git
   ladspa
@@ -104,36 +105,29 @@ provides=(
   libavfilter.so
   libavformat.so
   libavutil.so
-  libpostproc.so
   libswresample.so
   libswscale.so
 )
-options=(debug)
 source=(git+https://git.ffmpeg.org/ffmpeg.git)
 b2sums=('SKIP')
 
+pkgver() {
+  cd ffmpeg
+  git describe --tags | sed 's/^n//' | sed 's/-/./g'
+}
+
 build() {
-  export CC=clang
-  export CPP=clang-cpp
-  export CXX=clang++
-  export LD=lld
-  export AR=llvm-ar
-  export NM=llvm-nm
-  export STRIP=llvm-strip
-  export OBJCOPY=llvm-objcopy
-  export OBJDUMP=llvm-objdump
-  export READELF=llvm-readelf
-  export RANLIB=llvm-ranlib
-  export HOSTCC=clang
-  export HOSTCXX=clang++
-  export HOSTAR=llvm-ar
-  export HOSTLD=lld
   export PKG_CONFIG_PATH='/usr/lib/mbedtls2/pkgconfig'
+  export CFLAGS="-march=znver2 -O3 -mtune=znver2"
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS=""
+  export CC=clang
+  export CXX=clang++
   cd ffmpeg
   ./configure \
     --prefix=/usr \
     --disable-debug \
-    --enable-static \
+    --disable-static \
     --disable-stripping \
     --enable-amf \
     --enable-avisynth \
@@ -201,10 +195,12 @@ build() {
     --enable-shared \
     --enable-vapoursynth \
     --enable-version3 \
-    --enable-vulkan
-  make -j20 LLVM=1 LLVM_IAS=1
-  make -j20 LLVM=1 LLVM_IAS=1 tools/qt-faststart
-  make -j20 LLVM=1 LLVM_IAS=1 doc/ff{mpeg,play}.1
+    --enable-vulkan \
+    --cc=clang \
+    --cxx=clang++
+  LLVM=1 LLVM_IAS=1 make
+  LLVM=1 LLVM_IAS=1 make tools/qt-faststart
+  LLVM=1 LLVM_IAS=1 make doc/ff{mpeg,play}.1
 }
 
 package() {

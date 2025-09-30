@@ -1,0 +1,46 @@
+pkgname=libplacebo
+pkgver=7.351.0
+pkgrel=2
+pkgdesc='Reusable library for GPU-accelerated video/image rendering primitives'
+url='https://github.com/haasn/libplacebo'
+arch=('x86_64')
+license=('LGPL-2.1-or-later')
+depends=('vulkan-icd-loader' 'glslang' 'lcms2' 'shaderc'
+         'glibc' 'gcc-libs' 'libunwind' 'libdovi' 'xxhash')
+makedepends=(
+  'meson' 'ninja' 'vulkan-headers' 'glad' 'nuklear'
+  'python' 'python-setuptools' 'python-mako' 'python-markupsafe' 'python-jinja'
+  'libglvnd'
+)
+provides=('libplacebo.so')
+source=(git+https://code.videolan.org/videolan/libplacebo.git)
+sha512sums=('SKIP')
+
+build() {
+  cd ${pkgname}
+  CXXFLAGS+=" -I/usr/include/glslang"
+arch-meson build \
+    -Dprefix=/usr \
+    -Dlibdir=/usr/lib \
+    -Dtests=true \
+    -D vulkan=enabled \
+    -D glslang=enabled \
+    -D shaderc=enabled \
+    -D lcms=enabled \
+    -D d3d11=disabled \
+    -D libdovi=enabled \
+    -D demos=false
+  ninja -C build
+}
+
+package() {
+  depends+=(
+    'libdovi.so'
+    'liblcms2.so'
+    'libshaderc_shared.so'
+    'libvulkan.so'
+  )
+
+  cd ${pkgname}
+  DESTDIR="$pkgdir" ninja install -C build
+}
