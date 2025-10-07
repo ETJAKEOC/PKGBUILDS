@@ -1,5 +1,5 @@
 pkgname=mcpelauncher-ETJAKEOC
-pkgver=0.3.2.r281.g8097296
+pkgver=0.3.2.r287.g9de239f
 pkgrel=1
 pkgdesc="Minecraft PE launcher for Linux"
 arch=('x86_64')
@@ -122,11 +122,11 @@ EOF
 build() {
   cd "$srcdir/mcpelauncher-manifest"
   mkdir -p build && cd build
-  cmake .. -Wno-dev -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DJNI_USE_JNIVM=ON -DGAMEWINDOW_SYSTEM=SDL3 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-  make -j20 LLVM=1 LLVM_IAS=1
+  cmake .. -G Ninja -Wno-dev -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DJNI_USE_JNIVM=ON -DGAMEWINDOW_SYSTEM=SDL3 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+  ninja -j20
 }
 
 package() {
   cd "$srcdir/mcpelauncher-manifest/build"
-  make install DESTDIR="$pkgdir"
+  DESTDIR="$pkgdir" ninja install
 }

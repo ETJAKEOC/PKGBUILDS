@@ -1,7 +1,7 @@
 pkgname=proton-ETJAKEOC
 pkgver=GE.Proton10.1
 _geckover=2.47.4
-_monover=10.0.0
+_monover=10.2.0
 _xaliaver=0.4.6
 pkgrel=1
 epoch=2
@@ -101,7 +101,7 @@ pkgver() {
   tag=$(git tag -l 'GE-Proton*' --sort=-v:refname | head -n 1)
 
   # Optionally fallback if tag is empty
-  [[ -z "$tag" ]] && tag="GE-Proton9-20"
+  [[ -z "$tag" ]] && tag="GE-Proton10-1"
 
   # Clean it up for pacman-friendly version
   printf "%s" "${tag//-/.}"
