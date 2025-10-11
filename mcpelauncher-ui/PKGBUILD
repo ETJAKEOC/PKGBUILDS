@@ -34,7 +34,7 @@ prepare() {
 build() {
   cd "$srcdir"
   cmake -B build -S "$pkgname-manifest" -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=None -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -Wno-dev
-  cmake --build build
+  ninja -C build
 }
 package() {
   cd "$srcdir"

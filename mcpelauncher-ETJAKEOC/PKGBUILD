@@ -1,5 +1,5 @@
 pkgname=mcpelauncher-ETJAKEOC
-pkgver=0.3.2.r287.g9de239f
+pkgver=0.3.2.r296.gc43b7bf
 pkgrel=1
 pkgdesc="Minecraft PE launcher for Linux"
 arch=('x86_64')
@@ -103,6 +103,10 @@ prepare() {
   safe_ln_sfT "$srcdir/android_bionic/linker" "$srcdir/mcpelauncher-manifest/mcpelauncher-linker/linker"
   safe_ln_sfT "$srcdir/android_core" "$srcdir/mcpelauncher-manifest/mcpelauncher-linker/core"
 
+  # Fix shit ass fucking curl
+  mkdir -p "$srcdir/mcpelauncher-manifest/ext/curl/lib"
+  safe_ln_sfT /usr/lib/libcurl.a "$srcdir/mcpelauncher-manifest/ext/curl/lib/libcurl.a"
+
   # lldiv shim patch as before...
   symfile="$srcdir/mcpelauncher-manifest/minecraft-imported-symbols/src/imported_symbols.cpp"
   mkdir -p "$(dirname "$symfile")"
@@ -122,7 +126,7 @@ EOF
 build() {
   cd "$srcdir/mcpelauncher-manifest"
   mkdir -p build && cd build
-  cmake .. -G Ninja -Wno-dev -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DJNI_USE_JNIVM=ON -DGAMEWINDOW_SYSTEM=SDL3 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+  cmake .. -G Ninja -Wno-dev -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DJNI_USE_JNIVM=ON -DGAMEWINDOW_SYSTEM=SDL3 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DUSE_SYSTEM_CURL=ON
   ninja -j20
 }
 
