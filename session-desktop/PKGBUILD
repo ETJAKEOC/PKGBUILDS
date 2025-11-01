@@ -1,0 +1,57 @@
+pkgname=session-desktop
+pkgver=1.17.1
+pkgrel=1
+pkgdesc="A Decentralized, Onion Routed, Private Messenger"
+arch=('x86_64')
+url="https://getsession.org"
+license=('GPL-3.0-only')
+depends=('bash' "electron" 'gcc-libs' 'glibc' 'hicolor-icon-theme' 'python')
+makedepends=('cmake' 'git' 'nvm' 'python-setuptools' 'yarn' 'pkgconf' 'sqlite')
+source=("git+https://github.com/session-foundation/session-desktop"
+        "${pkgname}.desktop"
+        "${pkgname}.sh"
+	"libsession_util_nodejs-v0.5.9.tar.gz::https://github.com/session-foundation/libsession-util-nodejs/releases/download/v0.5.9/libsession_util_nodejs-v0.5.9.tar.gz")
+sha256sums=('SKIP'
+            '267d772a94ba49b19e799e7ecee25c0077ded4dd9c853c073ec386a8ab6a7e5c'
+            'bffe2a8f19ccd5f7c9f685b54df5d03b4d3c3f07a54118ead9bd00d6c42bd767'
+	    'SKIP')
+
+prepare() {
+  source /usr/share/nvm/init-nvm.sh
+  cd "${pkgname}"
+
+  nvm install 20.18.2
+  nvm use 20.18.2
+
+  unset npm_config_build_from_source
+  unset ELECTRON_SKIP_BINARY_DOWNLOAD
+
+  rm -f *.lock
+  corepack enable
+  yarn set version stable
+
+  export YARN_ENABLE_SCRIPTS=false
+  mkdir -p node_modules/libsession_util_nodejs
+  tar -xzf "${srcdir}/libsession_util_nodejs-v0.5.9.tar.gz" \
+    -C node_modules/libsession_util_nodejs --strip-components=1
+}
+
+build() {
+    cd "${pkgname}"
+    yarn install --mode=skip-build --network-timeout 600000
+    yarn build
+    yarn electron-builder --linux --dir -c.extraMetadata.environment=production
+}
+
+package() {
+    cd "${pkgname}"
+    install -d "${pkgdir}/opt/${pkgname}"
+    install -d "${pkgdir}/usr/bin"
+    install -d "${pkgdir}/usr/share"
+    cp -r dist/linux-unpacked/resources "${pkgdir}/opt/${pkgname}"
+    for i in 16 32 48 64 128 256 512 1024; do
+        install -Dm644 "build/icons/icon_${i}x${i}.png" "${pkgdir}/usr/share/icons/hicolor/${i}x${i}/apps/${pkgname}.png"
+    done
+    install -Dm755 "${srcdir}/${pkgname}.sh" "${pkgdir}/usr/bin/${pkgname}"
+    install -Dm644 "${srcdir}/${pkgname}.desktop" -t "${pkgdir}/usr/share/applications"
+}
