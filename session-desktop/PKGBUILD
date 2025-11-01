@@ -30,6 +30,13 @@ prepare() {
   corepack enable
   yarn set version stable
 
+  # Fixing some compiling issues
+  # Fix Framer Motion duration strings
+  grep -rl "THEME_GLOBALS\['--" ts/ | xargs sed -i "s/THEME_GLOBALS\['--\([^']*\)'\]/parseFloat(THEME_GLOBALS['--\1'])/g"
+
+  # Wrap buffers for Blob creation
+  grep -rl "new Blob(\[" ts/ | xargs sed -i "s/new Blob(\[/new Blob([new Uint8Array(/g"
+
   export YARN_ENABLE_SCRIPTS=false
   mkdir -p node_modules/libsession_util_nodejs
   tar -xzf "${srcdir}/libsession_util_nodejs-v0.5.9.tar.gz" \
