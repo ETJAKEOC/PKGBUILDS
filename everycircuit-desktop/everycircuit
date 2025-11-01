@@ -1,2 +1,0 @@
-#!/bin/bash
-exec /usr/bin/electron /usr/share/everycircuit/app.asar "$@"
