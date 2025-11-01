@@ -27,8 +27,8 @@ package() {
     # Install application
     install -Dm644 "$srcdir/app.asar" "$pkgdir/opt/android-messages-desktop/app.asar"
     install -Dm755 "$srcdir/android-messages-desktop" "$pkgdir/usr/bin/android-messages-desktop"
-    install -Dm644 "$srcdir/android-messages-desktop.desktop" "$pkgdir/opt/applications/android-messages-desktop.desktop"
-    install -Dm644 "$srcdir/android-messages-desktop.png" "$pkgdir/opt/pixmaps/android-messages-desktop.png"
+    install -Dm644 "$srcdir/android-messages-desktop.desktop" "$pkgdir/usr/share/applications/android-messages-desktop.desktop"
+    install -Dm644 "$srcdir/android-messages-desktop.png" "$pkgdir/usr/share/pixmaps/android-messages-desktop.png"
 
     # Make wrapper executable
     chmod +x "$pkgdir/usr/bin/android-messages-desktop"
