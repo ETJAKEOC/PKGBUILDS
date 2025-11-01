@@ -1,5 +1,5 @@
 pkgname=mcpelauncher-ETJAKEOC
-pkgver=0.3.2.r296.gc43b7bf
+pkgver=0.3.2.r305.gac6f678
 pkgrel=1
 pkgdesc="Minecraft PE launcher for Linux"
 arch=('x86_64')

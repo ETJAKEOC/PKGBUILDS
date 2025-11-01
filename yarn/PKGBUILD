@@ -1,0 +1,39 @@
+pkgname=yarn
+pkgver=4.10.3
+pkgrel=2
+pkgdesc='Fast, reliable, and secure dependency management'
+arch=(any)
+url=https://yarnpkg.com/
+license=(BSD-2-Clause)
+depends=(nodejs)
+makedepends=(git jq ripgrep)
+source=("git+https://github.com/ETJAKEOC/yarn.git")
+b2sums=('SKIP')
+
+build() {
+  cd $pkgname
+  corepack prepare yarn@4.10.3 --activate
+  yarn set version stable
+  yarn install --inline-builds
+  yarn build
+}
+
+package() {
+  local mod_dir=/usr/lib/node_modules/$pkgname
+  install -d "$pkgdir"/{usr/bin,$mod_dir/bin}
+  ln -s $mod_dir/bin/$pkgname.js "$pkgdir"/usr/bin/$pkgname
+  ln -s $mod_dir/bin/$pkgname.js "$pkgdir"/usr/bin/yarnpkg
+
+  cd $pkgname
+  jq 'del(.devDependencies)' package.json > package.json.tmp && mv package.json.tmp package.json
+  yarn workspaces focus
+  yarn install
+
+  # Fix punycode requires
+  readarray -t punycode_importers < <(rg -t js -l "require\('punycode'\)" lib bin)
+
+  cp -r lib package.json "$pkgdir/$mod_dir"
+  install -t "$pkgdir/$mod_dir/bin" bin/$pkgname.js
+  install -Dm644 -t "$pkgdir"/usr/share/doc/$pkgname README.md
+  install -Dm644 -t "$pkgdir"/usr/share/licenses/$pkgname LICENSE
+}

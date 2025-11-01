@@ -25,10 +25,10 @@ build() {
 
 package() {
     # Install application
-    install -Dm644 "$srcdir/app.asar" "$pkgdir/usr/share/everycircuit/app.asar"
+    install -Dm644 "$srcdir/app.asar" "$pkgdir/opt/$pkgname/everycircuit/app.asar"
     install -Dm755 "$srcdir/everycircuit" "$pkgdir/usr/bin/everycircuit"
-    install -Dm644 "$srcdir/everycircuit.desktop" "$pkgdir/usr/share/applications/everycircuit.desktop"
-    install -Dm644 "$srcdir/everycircuit.png" "$pkgdir/usr/share/pixmaps/everycircuit.png"
+    install -Dm644 "$srcdir/everycircuit.desktop" "$pkgdir/opt/$pkgname/applications/everycircuit.desktop"
+    install -Dm644 "$srcdir/everycircuit.png" "$pkgdir/opt/$pkgname/pixmaps/everycircuit.png"
 
     # Make wrapper executable
     chmod +x "$pkgdir/usr/bin/everycircuit"
