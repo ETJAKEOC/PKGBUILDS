@@ -1,6 +1,6 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 pkgname=qemu-full-git
-pkgver=10.1.0.r252.g91589bcd9f
+pkgver=10.1.0.r1969.g53b41bb789
 pkgrel=1
 epoch=25
 arch=(x86_64)
@@ -94,7 +94,7 @@ build() {
         --disable-werror \
         --enable-attr \
         --disable-bochs \
-        --enable-bpf \
+        --disable-bpf \
         --enable-blkio \
         --enable-bzip2 \
         --enable-cap-ng \
