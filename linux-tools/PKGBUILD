@@ -1,6 +1,7 @@
 pkgbase=linux-tools
 pkgname=('bootconfig' 'bpf' 'cpupower' 'hyperv' 'linux-tools-meta' 'perf' 'tmon' 'turbostat' 'usbip' 'x86_energy_perf_policy' 'intel-speed-select')
 pkgver=6.18
+rc=rc4
 pkgrel=8
 license=('GPL-2.0-only')
 arch=('x86_64')
@@ -10,12 +11,12 @@ makedepends=('git' 'asciidoc' 'xmlto' 'perl' 'python' 'python-setuptools' 'slang
 	'libtraceevent' 'openssl' 'clang' 'llvm-libs' 'libpfm' 'pciutils' 'glib2' 'sysfsutils' 'udev' 'ncurses' 'readline' 'zlib' 'libelf'
 	'libcap' 'python-docutils' 'libcap' 'llvm' 'clang' 'libnl')
 groups=("$pkgbase")
-source=("https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-${pkgver}-rc1.tar.gz"
+source=("https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-${pkgver}-${rc}.tar.gz"
         'cpupower.default' 'cpupower.install' 'cpupower.service' 'usbipd.service' 'hv_kvp_daemon.service' 'hv_vss_daemon.service')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 prepare() {
-  ln -sf linux-${pkgver}-rc1 linux
+  ln -sf linux-${pkgver}-${rc} linux
   cd linux
   local src
   for src in "${source[@]}"; do

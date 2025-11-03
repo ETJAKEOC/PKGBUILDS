@@ -1,7 +1,7 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 
 pkgname=linux-firmware-ETJAKEOC
-pkgver=20251021.14.g19731a36
+pkgver=20251021.30.g04b323bb
 pkgrel=1
 pkgdesc="Firmware files for Linux - pulled directly from git.kernel.org, packaged up by ETJAKEOC"
 arch=("any")
