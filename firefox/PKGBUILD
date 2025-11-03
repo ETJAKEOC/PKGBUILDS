@@ -1,5 +1,5 @@
 pkgname=firefox
-pkgver=146.0a1+20251103.2+h553d1c29c87f
+pkgver=146.0a1+20251103.4+hd87cd04072b0
 pkgrel=1
 pkgdesc="Fast, Private & Safe Web Browser (Nightly version)"
 url="https://www.mozilla.org/firefox/channel/desktop/#nightly"
@@ -14,7 +14,7 @@ optdepends=(
   'speech-dispatcher: Text-to-Speech'
   'xdg-desktop-portal: Screensharing with Wayland'
 )
-options=(!emptydirs !lto !makeflags !buildflags)
+options=(!emptydirs !lto !makeflags !buildflags strip)
 _repo=https://hg.mozilla.org/mozilla-central
 source=(
   hg+$_repo
@@ -60,7 +60,7 @@ _env() {
   export LLVM_PROFDATA='/bin/llvm-profdata'
   export LLVM_SYMBOLIZER='/bin/llvm-symbolizer'
 
-  # JIT tuning
+  # Generic tuning
   export JS_GC_SMALL_CHUNK_SIZE=4096
   export MOZ_JIT_THREAD_PRIORITY=high
   export MOZ_JIT_USE_FAST_ISOLATED_HEAPS=1
@@ -73,12 +73,17 @@ _env() {
   export MOZ_BUILD_DATE="$(date -u${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH} +%Y%m%d%H%M%S)"
   export MOZ_NOSPAM=1
   export MOZ_SOURCE_REPO="$_repo"
+  export MOZILLA_OFFICIAL=1
+  export RUSTC_OPT_LEVEL=3
+  export MOZ_UI_LOCALE=en-US
 
   # CPU and compiler tuning
-  export CFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-plt -falign-functions=32 -falign-loops=32 -funroll-loops"
+  export CFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-plt -falign-functions=32 -falign-loops=32 -funroll-loops -fno-semantic-interposition"
   export CXXFLAGS="${CFLAGS} -fvisibility-inlines-hidden"
   export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--sort-common -fuse-ld=lld -Wl,--icf=all -Wl,--no-keep-memory"
   export RUSTFLAGS="-C target-cpu=znver2 -C opt-level=3 -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C codegen-units=1 -C debuginfo=0 -C strip=debuginfo"
+  export LLVM=1
+  export LLVM_IAS=1
 }
 
 prepare() {
@@ -86,28 +91,44 @@ prepare() {
   mkdir mozbuild
   echo -n "AIzaSyDwr302FpOSkGRpLlUpPThNTDPbXcIn_FM" > mozilla-central/google-api-key
   cat >mozconfig <<'END'
-# API Keys
+export MOZILLA_OFFICIAL=1
+export RUSTC_OPT_LEVEL=3
+export MOZ_UI_LOCALE=en-US
+export CFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-plt -falign-functions=32 -falign-loops=32 -funroll-loops -fno-semantic-interposition"
+export CXXFLAGS="${CFLAGS} -fvisibility-inlines-hidden"
+export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--sort-common -fuse-ld=lld -Wl,--icf=all -Wl,--no-keep-memory"
+export RUSTFLAGS="-C target-cpu=znver2 -C opt-level=3 -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C codegen-units=1 -C debuginfo=0 -C strip=debuginfo"
+
+mk_add_options MOZ_PARALLEL_BUILD="$(nproc)"
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj
+
+ac_add_options --allow-addon-sideload
+ac_add_options --prefix=/usr
+
+ac_add_options --with-unsigned-addon-scopes=app,system
+ac_add_options --with-ccache=sccache
+ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
+ac_add_options --with-libclang-path="$(llvm-config --libdir)"
 ac_add_options --with-google-location-service-api-keyfile=${PWD}/google-api-key
 ac_add_options --with-google-safebrowsing-api-keyfile=${PWD}/google-api-key
-
-# Application & Branding
-export MOZILLA_OFFICIAL=1
-mk_add_options MOZ_OBJDIR=${PWD}/obj
-ac_add_options --enable-application=browser
 ac_add_options --with-branding=browser/branding/nightly
-ac_add_options --enable-update-channel=nightly
 ac_add_options --with-distribution-id=org.archlinux
+ac_add_options --with-system-ffi
+ac_add_options --with-system-gbm
+ac_add_options --with-system-libdrm
+ac_add_options --with-system-nspr
+ac_add_options --with-system-nss
+ac_add_options --with-system-pixman
+ac_add_options --with-system-zlib
+ac_add_options --with-toolchain-prefix="${CHOST}-"
+ac_add_options --with-intl-api
 
-# Build & Installation
-export RUSTC_OPT_LEVEL=3
-mk_add_options MOZ_PARALLEL_BUILD="$(nproc)"
-ac_add_options --prefix=/usr
-ac_add_options --disable-bootstrap
-ac_add_options --disable-install-strip
-ac_add_options --disable-tests
-ac_add_options --disable-webrtc
-ac_add_options --disable-eme
-ac_add_options --disable-parental-controls
+ac_add_options --enable-application=browser
+ac_add_options --enable-update-channel=nightly
+ac_add_options --enable-install-strip
+ac_add_options --enable-negotiateauth
+ac_add_options --enable-geckodriver
+ac_add_options --enable-system-policies
 ac_add_options --enable-release
 ac_add_options --enable-hardening
 ac_add_options --enable-optimize=3
@@ -116,39 +137,27 @@ ac_add_options --enable-linker=lld
 ac_add_options --enable-strip
 ac_add_options --enable-lto=full
 ac_add_options --enable-pgo
-ac_add_options --with-ccache=sccache
-ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
-ac_add_options --enable-linker=lld
-export CFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-plt -falign-functions=32 -falign-loops=32 -funroll-loops"
-export CXXFLAGS="${CFLAGS} -fvisibility-inlines-hidden"
-export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--sort-common -fuse-ld=lld -Wl,--icf=all -Wl,--no-keep-memory"
-export RUSTFLAGS="-C target-cpu=znver2 -C opt-level=3 -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C codegen-units=1 -C debuginfo=0 -C strip=debuginfo"
-
-# Add-ons & Extensions
-ac_add_options --with-unsigned-addon-scopes=app,system
-ac_add_options --allow-addon-sideload
-
-# Audio Support
 ac_add_options --enable-alsa
 ac_add_options --enable-jack
+ac_add_options --enable-jit
+ac_add_options --enable-ui-locale=en_US
+ac_add_options --enable-new-pass-manager
+ac_add_options --enable-packed-relative-relocs
+ac_add_options --enable-webrtc
 
-# Debugging & Testing
 ac_add_options --disable-debug
 ac_add_options --disable-debug-symbols
 ac_add_options --disable-tests
-
-# JIT & Runtime Features
-ac_add_options --enable-jit
-
-# Update & Crash Handling
 ac_add_options --disable-updater
 ac_add_options --disable-crashreporter
-
-# Build English only
-mk_add_options MOZ_CO_LOCALES=en_US
-ac_add_options --enable-ui-locale=en_US
 ac_add_options --disable-default-browser-agent
-export MOZ_UI_LOCALE=en-US
+ac_add_options --disable-tests
+ac_add_options --disable-eme
+ac_add_options --disable-wmf
+ac_add_options --disable-parental-controls
+ac_add_options --disable-disk-remnant-avoidance
+ac_add_options --disable-bootstrap
+ac_add_options --disable-cargo-incremental
 END
 }
 
