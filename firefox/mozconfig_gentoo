@@ -1,0 +1,34 @@
+	mozconfig_add_options_ac 'Gentoo default' \
+		--allow-addon-sideload \
+		--disable-cargo-incremental \
+		--disable-crashreporter \
+		--disable-disk-remnant-avoidance \
+		--disable-geckodriver \
+		--disable-install-strip \
+		--disable-legacy-profile-creation \
+		--disable-parental-controls \
+		--disable-strip \
+		--disable-updater \
+		--disable-wmf \
+		--enable-negotiateauth \
+		--enable-new-pass-manager \
+		--enable-official-branding \
+		--enable-packed-relative-relocs \
+		--enable-release \
+		--enable-system-policies \
+		--host="${CBUILD:-${CHOST}}" \
+		--libdir="${EPREFIX}/usr/$(get_libdir)" \
+		--prefix="${EPREFIX}/usr" \
+		--target="${CHOST}" \
+		--without-ccache \
+		--with-intl-api \
+		--with-libclang-path="$(llvm-config --libdir)" \
+		--with-system-ffi \
+		--with-system-gbm \
+		--with-system-libdrm \
+		--with-system-nspr \
+		--with-system-nss \
+		--with-system-pixman \
+		--with-system-zlib \
+		--with-toolchain-prefix="${CHOST}-" \
+		--with-unsigned-addon-scopes=app,system

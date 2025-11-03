@@ -1,0 +1,4 @@
+pkgname=(firefox firefox-debug)
+srcdest=/var/lib/archbuilddest/srcdest
+
+check_hg mozilla-central
