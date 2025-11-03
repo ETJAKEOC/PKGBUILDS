@@ -1,5 +1,5 @@
 pkgname=mcpelauncher-ui
-pkgver=1.4.1
+pkgver=1.5.3
 pkgrel=1
 pkgdesc="Minecraft: PE Linux launcher UI"
 arch=('x86_64')
@@ -31,11 +31,13 @@ prepare() {
   done
   git -c protocol.file.allow=always submodule update
 }
+
 build() {
   cd "$srcdir"
   cmake -B build -S "$pkgname-manifest" -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=None -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -Wno-dev
   ninja -C build
 }
+
 package() {
   cd "$srcdir"
   DESTDIR="$pkgdir" cmake --install build

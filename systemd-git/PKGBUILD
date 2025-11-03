@@ -1,11 +1,11 @@
 pkgbase=systemd-git
 pkgname=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
 pkgdesc='systemd (git version)'
-pkgver=259.devel.r84157.d29f181cf02
+pkgver=259.devel.r84454.3d600ea785
 pkgrel=1
 arch=('x86_64')
 license=('LGPL-2.1-or-later')
-url='https://www.github.com/systemd/systemd'
+url='https://www.github.com/ETJAKEOC/systemd'
 makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
              'intltool' 'iptables' 'kmod' 'libarchive' 'libcap' 'libidn2' 'libgcrypt'
              'libmicrohttpd' 'libxcrypt' 'libxslt' 'util-linux' 'linux-api-headers'
@@ -16,7 +16,7 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
              'libpwquality' 'qrencode' 'lib32-gcc-libs' 'python-pefile')
 conflicts=("mkinitcpio<38-1" 'systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
 provides=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
-options=('!strip')
+options=('!strip' '!ccache' 'lto' 'buildflags' 'makeflags')
 source=("$pkgbase::git+${url}.git"
         'systemd-user.pam'
         'systemd-hook'
@@ -31,6 +31,7 @@ source=("$pkgbase::git+${url}.git"
         '30-systemd-udev-reload.hook'
         '30-systemd-update.hook')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
 pkgver() {
   cd "$pkgbase"
   local _major=`sed 's/~/./g' meson.version`
@@ -42,43 +43,27 @@ prepare() {
   git submodule update --init --recursive
 }
 
-_env() {
-  export XDG_SESSION_TYPE=wayland
-  export CC=/usr/bin/clang
-  export CPP=/usr/bin/clang-cpp
-  export CXX=/usr/bin/clang++
-  export LD=lld
-  export CC_LD=lld
-  export CXX_LD=lld
-  export AR=llvm-ar
-  export NM=llvm-nm
-  export STRIP=llvm-strip
-  export OBJCOPY=llvm-objcopy
-  export OBJDUMP=llvm-objdump
-  export READELF=llvm-readelf
-  export RANLIB=llvm-ranlib
-  export HOSTCC=/usr/bin/clang
-  export HOSTCXX=/usr/bin/clang++
-  export HOSTAR=llvm-ar
-  export HOSTLD=lld
-  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto=full -g0 -I/usr/include"
-  export CFLAGS="-march=znver2 -mtune=znver2 -O3 -flto=full -I/usr/include/freetype2 -I/usr/include/SDL2"
-  export CXXFLAGS="-march=znver2 -mtune=znver2 -O3 -flto=full -I/usr/include/freetype2 -I/usr/include/SDL2"
-  export LDFLAGS="-fuse-ld=lld -flto=full -O3 -Wl,--icf=all"
-  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker=clang -C linker-plugin-lto -C panic=abort -C debuginfo=0 -C strip=debuginfo"
-  export DEBUG_CFLAGS="-fasynchronous-unwind-tables -g0"
-  export DEBUG_CXXFLAGS="-fasynchronous-unwind-tables -g0"
-  export DEBUG_RUSTFLAGS="-C debuginfo=0"
-  export XML_CATALOG_FILES=/usr/share/xml/docbook/xsl-stylesheets/catalog.xml
-}
-
 build() {
-  _env
   local _meson_options=(
+    -Dprefix=/usr \
+    -Dlibdir=/usr/lib \
+    --reconfigure \
+    --optimization  3 \
+    --auto-features enabled \
+    -Db_pie=true \
+    -Db_staticpic=true \
+    -Db_lto=true \
+    -Dpython.bytecompile=2 \
+    -Dbackend=ninja \
+    -Db_colorout=always \
+    -Dc_args="$CFLAGS" \
+    -Dc_link_args="$LDFLAGS" \
+    -Dcpp_args="$CPPFLAGS" \
+    -Dcpp_link_args="$LDFLAGS"
     -Dversion-tag="${pkgver}-${pkgrel}-arch"
     -Dvcs-tag=true
     -Dshared-lib-tag="${pkgver}-${pkgrel}"
-    -Dstandalone-binaries=false
+    -Dstandalone-binaries=true
     -Dinstall-tests=false
     -Dslow-tests=false
     -Dtests=false
@@ -116,7 +101,7 @@ build() {
     -Dsbat-distro-version="${pkgver}"
     -Dsbat-distro-url="https://aur.archlinux.org/pkgbase/${pkgname}"
   )
-  arch-meson "${pkgbase}" "${_meson_options[@]}" build
+  meson "${pkgbase}" "${_meson_options[@]}" build
   ninja -C build
 }
 
