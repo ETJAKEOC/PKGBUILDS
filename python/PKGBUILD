@@ -1,0 +1,104 @@
+shopt -s extglob
+pkgbase=python
+pkgname=(python python-tests)
+pkgver=3.13.7
+pkgrel=1
+_pybasever=${pkgver%.*}
+pkgdesc="The Python programming language"
+arch=('x86_64')
+license=('PSF-2.0')
+url="https://www.python.org/"
+depends=('bzip2' 'expat' 'gdbm' 'libffi' 'libnsl' 'libxcrypt' 'openssl' 'zlib' 'tzdata' 'mpdecimal')
+makedepends=('tk' 'sqlite' 'bluez-libs' 'llvm' 'gdb' 'xorg-server-xvfb' 'ttf-font')
+source=("https://www.python.org/ftp/python/${pkgver%rc*}/Python-${pkgver}.tar.xz"
+        EXTERNALLY-MANAGED)
+sha512sums=('SKIP' 'SKIP')
+options=('!ccache' 'lto')
+
+prepare() {
+  cd Python-${pkgver}
+  rm -r Modules/expat
+  rm -r Modules/_decimal/libmpdec
+}
+
+build() {
+  cd Python-${pkgver}
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+  export CARCH="x86_64"
+  export CHOST="x86_64-pc-linux-gnu"
+
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
+  export LDFLAGS="-fuse-ld=lld -flto -O3 -Wl,--icf=all"
+
+  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker=clang -C linker-plugin-lto -C panic=abort -C debuginfo=0 -C strip=debuginfo"
+
+  ./configure --prefix=/usr \
+              --enable-shared \
+              --with-computed-gotos \
+              --enable-optimizations \
+              --with-lto=full \
+              --enable-ipv6 \
+              --with-system-expat \
+              --with-dbmliborder=gdbm:ndbm \
+              --with-system-libmpdec \
+              --enable-loadable-sqlite-extensions \
+              --without-ensurepip \
+              --disable-test-modules \
+              --with-tzpath=/usr/share/zoneinfo \
+              CC=clang CPP=clang-cpp CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0" CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0" LDFLAGS="-fuse-ld=lld -flto -O3 -Wl,--icf=all"
+  export servernum=99
+  while ! xvfb-run -a -n "$servernum" /bin/true 2>/dev/null; do servernum=$((servernum+1)); done
+  LC_CTYPE=en_US.UTF-8 xvfb-run -s "-screen 0 1920x1080x16 -ac +extension GLX" -a -n "$servernum" make EXTRA_CFLAGS="$CFLAGS"
+}
+
+package_python() {
+  optdepends=('python-setuptools: for building Python packages using tooling that is usually bundled with Python'
+              'python-pip: for installing Python packages using tooling that is usually bundled with Python'
+              'python-pipx: for installing Python software not packaged on Arch Linux'
+              'sqlite: for a default database integration'
+              'xz: for lzma'
+              'tk: for tkinter')
+  provides=('python3' 'python-externally-managed')
+  replaces=('python3' 'python-externally-managed')
+  cd Python-${pkgver}
+  sed -i 's/^all:.*$/all: build_all/' Makefile
+  make DESTDIR="${pkgdir}" install
+  ln -s python3               "${pkgdir}"/usr/bin/python
+  ln -s python3-config        "${pkgdir}"/usr/bin/python-config
+  ln -s idle3                 "${pkgdir}"/usr/bin/idle
+  ln -s pydoc3                "${pkgdir}"/usr/bin/pydoc
+  ln -s python${_pybasever}.1 "${pkgdir}"/usr/share/man/man1/python.1
+  install -dm755 "${pkgdir}"/usr/lib/python${_pybasever}/Tools/{i18n,scripts}
+  install -m755 Tools/i18n/{msgfmt,pygettext}.py "${pkgdir}"/usr/lib/python${_pybasever}/Tools/i18n/
+  install -m755 Tools/scripts/{README,*py} "${pkgdir}"/usr/lib/python${_pybasever}/Tools/scripts/
+  install -Dm644 "$srcdir"/EXTERNALLY-MANAGED -t "${pkgdir}/usr/lib/python${_pybasever}/"
+  cd "$pkgdir"/usr/lib/python*/
+  rm -r {test,idlelib/idle_test} | true
+}
+
+package_python-tests() {
+  pkgdesc="Regression tests packages for Python"
+  depends=('python')
+  cd Python-${pkgver}
+  make DESTDIR="${pkgdir}" libinstall
+  cd "$pkgdir"/usr/lib/python*/
+  rm -r !(test) | true
+}

@@ -1,49 +1,10 @@
 pkgname=mesa-git
 pkgdesc="an open-source implementation of the OpenGL specification, git version"
-pkgver=25.3.0_devel.210309.d6a79f7e9f0.d41d8cd
+pkgver=26.0.0_devel.215433.9a497d6fc12.d41d8cd
 pkgrel=1
 arch=('x86_64')
-makedepends=(
-	'git'
-	'xorgproto'
-	'meson'
-	'libxml2'
-	'libvdpau'
-	'libva'
-	'elfutils'
-	'libxrandr'
-	'glslang'
-	'directx-headers-git'
-	'python-mako'
-	'python-ply'
-	'cbindgen'
-	'wayland-protocols'
-	'python-packaging'
-	'python-pyaml'
-)
-depends=(
-	'libdrm'
-	'libxxf86vm'
-	'libxdamage'
-	'libxshmfence'
-	'libelf'
-	'libglvnd'
-	'wayland'
-	'lm_sensors'
-	'vulkan-icd-loader'
-	'zstd'
-	'expat'
-	'gcc-libs'
-	'libxfixes'
-	'libx11'
-	'systemd-libs'
-	'libxext'
-	'libxcb'
-	'glibc'
-	'zlib'
-	'python'
-	'xcb-util-keysyms'
-)
+makedepends=('git' 'xorgproto' 'meson' 'libxml2' 'libvdpau' 'libva' 'elfutils' 'libxrandr' 'glslang' 'directx-headers-git' 'python-mako' 'python-ply' 'cbindgen' 'wayland-protocols' 'python-packaging' 'python-pyaml')
+depends=('libdrm' 'libxxf86vm' 'libxdamage' 'libxshmfence' 'libelf' 'libglvnd' 'wayland' 'lm_sensors' 'vulkan-icd-loader' 'zstd' 'expat' 'gcc-libs' 'libxfixes' 'libx11' 'systemd-libs' 'libxext' 'libxcb' 'glibc' 'zlib' 'python' 'xcb-util-keysyms')
 optdepends=('opengl-man-pages: for the OpenGL API man pages')
 provides=('vulkan-mesa-layers' 'opencl-driver' 'opengl-driver' 'vulkan-driver' 'vulkan-radeon' 'vulkan-swrast' 'vulkan-virtio' 'libva-mesa-driver' 'mesa-vdpau' 'mesa-libgl' 'mesa')
 conflicts=('vulkan-mesa-layers' 'opencl-clover-mesa' 'vulkan-radeon' 'vulkan-swrast' 'vulkan-virtio' 'libva-mesa-driver' 'mesa-vdpau' 'mesa-libgl' 'mesa')
@@ -52,10 +13,10 @@ license=('custom')
 source=('mesa::git+https://gitlab.freedesktop.org/mesa/mesa.git#branch=main' 'LICENSE')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 declare -A _crates=(
-   proc-macro2    1.0.92
-   quote          1.0.37
-   syn            2.0.90
-   unicode-ident  1.0.14
+   proc-macro2    1.0.103
+   quote          1.0.42
+   syn            2.0.111
+   unicode-ident  1.0.22
 )
 
 for _crate in "${!_crates[@]}"; do
@@ -98,8 +59,8 @@ build () {
     source /etc/environment
     arch-meson build mesa -D gallium-drivers=r300,r600,radeonsi,virgl,svga,softpipe,llvmpipe,d3d12,v3d -D glvnd=enabled -D gallium-d3d12-graphics=auto \
     -D android-libbacktrace=disabled -D b_ndebug=true -D b_lto=true -D egl=enabled -D gallium-extra-hud=true -D opengl=true -D gallium-d3d12-video=enabled \
-    -D gallium-d3d10umd=false -D gallium-rusticl=true -D gallium-va=enabled -D xlib-lease=enabled -D gallium-mediafoundation=false \
-    -D gallium-vdpau=enabled -D gbm=enabled -D gles1=disabled -D gles2=enabled -D intel-rt=disabled -D glx-direct=true -D build-tests=false\
+    -D gallium-d3d10umd=false -D gallium-rusticl=true -D gallium-va=enabled -D xlib-lease=enabled -D gallium-mediafoundation=disabled \
+    -D gbm=enabled -D gles1=disabled -D gles2=enabled -D intel-rt=disabled -D glx-direct=true -D build-tests=false\
     -D glvnd=enabled -D glx=dri -D libunwind=enabled -D llvm=enabled -D lmsensors=enabled -D shader-cache-max-size=16G \
     -D microsoft-clc=disabled -D platforms=x11,wayland -D valgrind=disabled -D shader-cache=enabled -D video-codecs=h264dec,h264enc,h265dec,h265enc,vc1dec,vp9dec \
     -D vulkan-drivers=amd,swrast,virtio,gfxstream -D vulkan-layers=device-select,overlay,screenshot -D draw-use-llvm=true \
@@ -111,6 +72,6 @@ package() {
     DESTDIR="$pkgdir" ninja -j$(nproc) -C build install
 #    rm "$pkgdir/usr/bin/mesa-overlay-control.py"
 #    rmdir "$pkgdir/usr/bin"
-#    ln -s /usr/lib/libGLX_mesa.so.0 "$pkgdir/usr/lib/libGLX_indirect.so.0"
+    ln -s /usr/lib/libGLX_mesa.so.0 "$pkgdir/usr/lib/libGLX_indirect.so.0"
     install -m644 -Dt "$pkgdir/usr/share/licenses/$pkgname" "$srcdir/LICENSE"
 }

@@ -1,6 +1,5 @@
 pkgname=firefox-3900XT
-_pkgname=firefox
-pkgver=146.0a1+20251105.3+h57ecaf4b76dc
+pkgver=147.0a1+20251124.1+hdca44e6b1f20
 pkgrel=1
 pkgdesc="Fast, Private & Safe Web Browser (Nightly version) Full LTO + PGO - Ryzen 9 3900XT tuned"
 url="https://www.mozilla.org/firefox/channel/desktop/#nightly"
@@ -10,11 +9,11 @@ depends=(alsa-lib at-spi2-core bash cairo dbus ffmpeg4.4 fontconfig freetype2 gc
 makedepends=(cbindgen clang compiler-rt diffutils dump_syms expect imake jack lld llvm mercurial mesa nasm nodejs python python-async_generator python-selenium-bin python-trio-websocket python-wsproto rust unzip wasi-compiler-rt wasi-libc wasi-libc++ wasi-libc++abi xorg-server-xvfb yasm zip)
 options=(!emptydirs !lto !makeflags !buildflags strip)
 _repo=https://hg.mozilla.org/mozilla-central
-source=(hg+$_repo expect.sh mozconfig google-api-key $_pkgname-symbolic.svg $_pkgname.desktop org.mozilla.$_pkgname.metainfo.xml)
+source=(hg+$_repo expect.sh mozconfig google-api-key firefox-symbolic.svg firefox.desktop org.mozilla.firefox.metainfo.xml)
 validpgpkeys=(14F26682D0916CDD81E37B6D61B7B526D98F0353)
 sha256sums=('SKIP'
             'e34845d2b8f9e1f81cda38568af99b33e6182024dfc45e6536b538ff6a90dc8e'
-            '10c7c819bc9f3c222906b20b7ddfd184ea15654e0d4e18791a5dce11b856abc8'
+            'SKIP'
             'e53bfcbdb636a8089c2d873565f607310df87d1f86c2cd67835a4ec5e9090f82'
             'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9'
             'bff6d762411d77c9eea4f6fa10edd891e94366c44bd581054c62fe50df112eee'
@@ -75,8 +74,6 @@ _env() {
   export MOZ_LTO_OPTLEVEL=3
   export MOZ_AVX2=1
   export LLVM_PROFDATA=/usr/bin/llvm-profdata
-  export MOZ_PGO=1
-  export MOZ_PROFILE_USE="$srcdir/mozilla-central/obj/instrumented/merged.profdata"
   export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=pip
   export MOZBUILD_STATE_PATH="$srcdir/mozbuild"
   export MOZ_BUILD_DATE="$(date -u${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH} +%Y%m%d%H%M%S)"
@@ -84,6 +81,7 @@ _env() {
   export MOZ_SOURCE_REPO="$_repo"
   export MOZILLA_OFFICIAL=1
   export RUSTC_OPT_LEVEL=3
+  export MOZ_PGO_NARROW=0
   export MOZ_CRASHREPORTER=0
   export MOZ_DATA_REPORTING=0
   export MOZ_FETCHES_DIR=/dev/null
@@ -92,14 +90,16 @@ _env() {
   export RUSTC_BOOTSTRAP=1
   export LLVM=1
   export LLVM_IAS=1
+  export LLVM_PROFDATA=/usr/bin/llvm-profdata
+  export LLVM_PROFILE_FILE="code-%p.profraw"
   export SRC_DIR="$srcdir"
 
   # Compiler tuning
-  export CPPFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -falign-functions=32 -falign-loops=32 -funroll-loops -fno-semantic-interposition"
-  export CFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -falign-functions=32 -falign-loops=32 -funroll-loops -fno-semantic-interposition -fno-stack-protector -fno-asynchronous-unwind-tables -fmerge-all-constants -fno-reciprocal-math -fno-signed-zeros -fno-trapping-math"
-  export CXXFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -falign-functions=32 -falign-loops=32 -funroll-loops -fno-semantic-interposition -fvisibility-inlines-hidden -fno-stack-protector -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti -fmerge-all-constants -fno-reciprocal-math -fno-signed-zeros -fno-trapping-math"
+  export CPPFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -fno-semantic-interposition"
+  export CFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -fno-semantic-interposition -fvisibility-inlines-hidden"
+  export CXXFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -fno-semantic-interposition -fvisibility-inlines-hidden"
   export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--sort-common -fuse-ld=lld -Wl,--icf=all -Wl,--no-keep-memory -Wl,--lto-O3"
-  export RUSTFLAGS="-C target-cpu=znver2 -C opt-level=3 -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C codegen-units=1 -C debuginfo=0 -C strip=debuginfo -C target-feature=+sse4.2,+avx2,+fma"
+  export RUSTFLAGS="-C target-cpu=znver2 -C opt-level=3 -C link-arg=-fuse-ld=lld -C codegen-units=1 -C debuginfo=0 -C strip=debuginfo -C target-feature=+sse4.2,+avx2,+fma"
 }
 
 build() {
@@ -107,16 +107,13 @@ build() {
   cd "${srcdir}/mozilla-central"
   ulimit -n 16384
 
-  # 1. Bootstrap environment if missing
-  if [ ! -d _virtualenvs/mach ]; then
-    ./expect.sh
-  fi
+  # 1. Bootstrap environment
+  ./expect.sh
 
   # 2. Upgrade pip & setuptools
   ./mach python -m pip install --upgrade glean_parser
 
   # 3. Instrumented build for PGO
-  echo "ac_add_options --enable-profile-generate" >> mozconfig
   ./mach build
 
   # 4. Run Mozilla’s built-in PGO profiling session
@@ -134,8 +131,8 @@ build() {
   fi
 
   # 6. Switch mozconfig to 'use' mode
-  sed -i '/--enable-profile-generate/d' mozconfig
-  echo "ac_add_options --enable-profile-use" >> mozconfig
+  sed -i '/--enable-profile-generate/--enable-profile-use' mozconfig
+  export MOZ_PROFILE_USE="$srcdir/mozilla-central/obj/instrumented/merged.profdata"
 
   # 7. Final optimized rebuild
   ./mach build
@@ -145,13 +142,30 @@ build() {
   mkdir -p "${srcdir}/mozilla-central/obj-x86_64-pc-linux-gnu/dist/bin"
   cp -a /usr/bin/llvm-symbolizer \
     "${srcdir}/mozilla-central/obj-x86_64-pc-linux-gnu/dist/bin/llvm-symbolizer"
+
+  # 9. BOLT Optimizations
+  llvm-bolt obj-x86_64-pc-linux-gnu/dist/bin/firefox -o obj-x86_64-pc-linux-gnu/dist/bin/firefox.bolt \
+    -reorder-data=cache \
+    -reorder-blocks=ext-tsp \
+    -reorder-functions=hfsort \
+    -split-functions=2 \
+    -icf=1
+  mv obj-x86_64-pc-linux-gnu/dist/bin/firefox.bolt obj-x86_64-pc-linux-gnu/dist/bin/firefox
+  llvm-bolt obj-x86_64-pc-linux-gnu/dist/bin/libxul.so \
+    -o obj-x86_64-pc-linux-gnu/dist/bin/libxul.bolt \
+    -reorder-data=cache \
+    -reorder-blocks=ext-tsp \
+    -reorder-functions=hfsort \
+    -split-functions=2 \
+    -icf=1
+  mv obj-x86_64-pc-linux-gnu/dist/bin/libxul.bolt obj-x86_64-pc-linux-gnu/dist/bin/libxul.so
 }
 
 package() {
   _env
   cd "${srcdir}/mozilla-central"
   DESTDIR="$pkgdir" ./mach install
-  local vendorjs="$pkgdir/usr/lib/$_pkgname/browser/defaults/preferences/vendor.js"
+  local vendorjs="$pkgdir/usr/lib/firefox/browser/defaults/preferences/vendor.js"
   install -Dvm644 /dev/stdin "$vendorjs" <<END
 pref("intl.locale.requested", "en_US");
 pref("spellchecker.dictionary_path", "/usr/share/hunspell");
@@ -159,7 +173,7 @@ pref("browser.shell.checkDefaultBrowser", false);
 pref("extensions.autoDisableScopes", 11);
 pref("browser.gnome-search-provider.enabled", true);
 END
-  local distini="$pkgdir/usr/lib/$_pkgname/distribution/distribution.ini"
+  local distini="$pkgdir/usr/lib/firefox/distribution/distribution.ini"
   install -Dvm644 /dev/stdin "$distini" <<END
 [Global]
 id=archlinux
@@ -168,33 +182,33 @@ about=Mozilla Firefox for Arch Linux
 
 [Preferences]
 app.distributor=ETJAKEOC
-app.distributor.channel=$_pkgname
+app.distributor.channel=firefox
 app.partner.archlinux=archlinux
 END
   local i theme=nightly
   for i in 16 22 24 32 48 64 128 256; do
     install -Dvm644 browser/branding/$theme/default$i.png \
-      "$pkgdir/usr/share/icons/hicolor/${i}x${i}/apps/$_pkgname.png"
+      "$pkgdir/usr/share/icons/hicolor/${i}x${i}/apps/firefox.png"
   done
   install -Dvm644 browser/branding/$theme/content/about-logo.png \
-    "$pkgdir/usr/share/icons/hicolor/192x192/apps/$_pkgname.png"
+    "$pkgdir/usr/share/icons/hicolor/192x192/apps/firefox.png"
   install -Dvm644 browser/branding/$theme/content/about-logo@2x.png \
-    "$pkgdir/usr/share/icons/hicolor/384x384/apps/$_pkgname.png"
+    "$pkgdir/usr/share/icons/hicolor/384x384/apps/firefox.png"
   install -Dvm644 browser/branding/$theme/content/about-logo.svg \
-    "$pkgdir/usr/share/icons/hicolor/scalable/apps/$_pkgname.svg"
-  install -Dvm644 ../$_pkgname-symbolic.svg -t "$pkgdir/usr/share/icons/hicolor/symbolic/apps"
-  install -Dvm644 ../$_pkgname.desktop -t "$pkgdir/usr/share/applications"
-  install -Dvm644 ../org.mozilla.$_pkgname.metainfo.xml -t "$pkgdir/usr/share/metainfo"
-  install -Dvm755 /dev/stdin "$pkgdir/usr/bin/$_pkgname" <<END
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/firefox.svg"
+  install -Dvm644 ../firefox-symbolic.svg -t "$pkgdir/usr/share/icons/hicolor/symbolic/apps"
+  install -Dvm644 ../firefox.desktop -t "$pkgdir/usr/share/applications"
+  install -Dvm644 ../org.mozilla.firefox.metainfo.xml -t "$pkgdir/usr/share/metainfo"
+  install -Dvm755 /dev/stdin "$pkgdir/usr/bin/firefox" <<END
 #!/bin/sh
-exec /usr/lib/$_pkgname/firefox "\$@"
+exec /usr/lib/firefox/firefox "\$@"
 END
-  local sprovider="$pkgdir/usr/share/gnome-shell/search-providers/$_pkgname.search-provider.ini"
+  local sprovider="$pkgdir/usr/share/gnome-shell/search-providers/firefox.search-provider.ini"
   install -Dvm644 /dev/stdin "$sprovider" <<END
 [Shell Search Provider]
-DesktopId=$_pkgname.desktop
-BusName=org.mozilla.${_pkgname//-/_}.SearchProvider
-ObjectPath=/org/mozilla/${_pkgname//-/_}/SearchProvider
+DesktopId=firefox.desktop
+BusName=org.mozilla.${firefox//-/_}.SearchProvider
+ObjectPath=/org/mozilla/${firefox//-/_}/SearchProvider
 Version=2
 END
 }

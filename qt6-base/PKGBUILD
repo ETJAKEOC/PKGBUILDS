@@ -1,109 +1,74 @@
 pkgbase=qt6-base
 pkgname=('qt6-base' 'qt6-xcb-private-headers')
-_pkgver=6.8.1
-pkgver=6.8.1
+pkgver=6.10.0
 pkgrel=1
+pkgdesc='A cross-platform application and UI framework'
 arch=(x86_64)
 url='https://www.qt.io'
-license=(GPL-3.0-only
-         LGPL-3.0-only
-         LicenseRef-Qt-Commercial
-         Qt-GPL-exception-1.0)
-pkgdesc='A cross-platform application and UI framework'
-depends=(brotli
-         dbus
-         double-conversion
-         fontconfig
-         freetype2
-         gcc-libs
-         glib2
-         glibc
-         harfbuzz
-         icu
-         krb5
-         libb2
-         libdrm
-         libgl
-         libice
-         libinput
-         libjpeg-turbo
-         libpng
-         libproxy
-         libsm
-         libx11
-         libxcb
-         libxkbcommon
-         libxkbcommon-x11
-         md4c
-         mesa
-         mtdev
-         openssl
-         pcre2
-         shared-mime-info
-         sqlite
-         systemd-libs
-         tslib
-         vulkan-headers
-         xcb-util-cursor
-         xcb-util-image
-         xcb-util-keysyms
-         xcb-util-renderutil
-         xcb-util-wm
-         xdg-utils
-         zlib
-         zstd)
-makedepends=(alsa-lib
-             cmake
-             freetds
-             git
-             gst-plugins-base-libs
-             gtk3
-             libfbclient
-             libpulse
-             mariadb-libs
-             ninja
-             postgresql
-             unixodbc
-             xmlstarlet)
-optdepends=('freetds: MS SQL driver'
-            'gdk-pixbuf2: GTK platform plugin'
-            'gtk3: GTK platform plugin'
-            'libfbclient: Firebird/iBase driver'
-            'mariadb-libs: MariaDB driver'
-            'pango: GTK platform plugin'
-            'perl: for syncqt'
-            'postgresql-libs: PostgreSQL driver'
-            'qt6-wayland: to run Qt6 applications in a Wayland session'
-            'unixodbc: ODBC driver')
 groups=(qt6)
-_pkgfn=qtbase
+license=(GPL-3.0-only LGPL-3.0-only LicenseRef-Qt-Commercial Qt-GPL-exception-1.0)
+options=('!ccache' 'lto' 'buildflags' 'makeflags')
+depends=(brotli dbus double-conversion fontconfig freetype2 gcc-libs glib2
+	 glibc harfbuzz icu krb5 libb2 libdrm libgl libice libinput libjpeg-turbo
+	 libpng libproxy libsm libx11 libxcb libxkbcommon libxkbcommon-x11 md4c
+	 mesa mtdev openssl pcre2 shared-mime-info sqlite systemd-libs tslib vulkan-headers
+	 xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm
+	 xdg-utils zlib zstd)
+makedepends=(alsa-lib cmake freetds git gst-plugins-base-libs gtk3 libfbclient libpulse
+             mariadb-libs ninja postgresql unixodbc xmlstarlet)
 
 prepare() {
   cd "$srcdir"
-  git clone --recurse-submodules --depth 1 --branch dev https://code.qt.io/qt/qt5.git qtbase
-  perl init-repository
+  if [[ -d qtbase ]]; then
+    echo "Sources already downloaded, skipping..."
+  else
+    echo "Downloading sources..."
+    git clone --depth 1 --recurse-submodules https://code.qt.io/qt/qtbase.git
+  fi
 }
 
 build() {
   cd "$srcdir/qtbase"
-  ./configure -release -- \
-	--fresh \
-	-Wno-dev \
-	-G Ninja \
-	-DINPUT_linker=lld \
-	-DFEATURE_use__linker=ON \
-	-DQT_USE_CCACHE=ON \
-	-DQT_BUILD_TESTS=OFF \
-	-DQT_BUILD_EXAMPLES=ON \
-	-DFEATURE_cups=OFF
-  cmake --build . --parallel $(nproc)
+  ./configure -release -- --fresh -Wno-dev -G Ninja \
+    -DINSTALL_BINDIR=lib/qt6/bin \
+    -DINSTALL_PUBLICBINDIR=usr/bin \
+    -DINSTALL_LIBEXECDIR=lib/qt6 \
+    -DINSTALL_DOCDIR=share/doc/qt6 \
+    -DINSTALL_ARCHDATADIR=lib/qt6 \
+    -DINSTALL_DATADIR=share/qt6 \
+    -DINSTALL_INCLUDEDIR=include/qt6 \
+    -DINSTALL_MKSPECSDIR=lib/qt6/mkspecs \
+    -DINSTALL_EXAMPLESDIR=share/doc/qt6/examples \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DINPUT_linker="$LD" \
+    -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CXXFLAGS" -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+    -DCMAKE_MESSAGE_LOG_LEVEL=STATUS \
+    -DQT_USE_CCACHE=OFF \
+    -DQT_BUILD_TESTS=OFF \
+    -DQT_BUILD_EXAMPLES=OFF \
+    -DQT_NO_PACKGE_VERSION_CHECK=TRUE \
+    -DQT_NO_PACKGE_VERSION_INCOMPATIBLE_WARNING=TRUE \
+    -DFEATURE_shared=ON \
+    -DFEATURE_ltcg=ON \
+    -DFEATURE_kms=ON \
+    -DFEATURE_linuxfb=ON \
+    -DFEATURE_cups=ON \
+    -DFEATURE_journald=ON \
+    -DFEATURE_libproxy=ON \
+    -DFEATURE_openssl_linked=ON \
+    -DFEATURE_system_sqlite=ON \
+    -DFEATURE_system_xcb_xinput=ON \
+    -DFEATURE_force_system_libs=ON \
+    -DFEATURE_no_direct_extern_access=ON
+  cmake --build . --parallel
 }
 
 package_qt6-base() {
   pkgdesc='A cross-platform application and UI framework'
   depends+=(qt6-translations)
   DESTDIR="$pkgdir" cmake --install .
-  install -Dm644 $_pkgfn/LICENSES/* -t "$pkgdir"/usr/share/licenses/$pkgbase
   cd "$pkgdir"
   mkdir usr/bin
   while read _line; do
@@ -114,7 +79,7 @@ package_qt6-base() {
 package_qt6-xcb-private-headers() {
   pkgdesc='Private headers for Qt6 Xcb'
   depends=("qt6-base=$pkgver")
-  cd $_pkgfn
+  cd qtbase
   install -d -m755 "$pkgdir"/usr/include/qt6xcb-private/{gl_integrations,nativepainting}
   cp -r src/plugins/platforms/xcb/*.h "$pkgdir"/usr/include/qt6xcb-private/
   cp -r src/plugins/platforms/xcb/gl_integrations/*.h "$pkgdir"/usr/include/qt6xcb-private/gl_integrations/

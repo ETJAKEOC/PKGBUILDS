@@ -1,13 +1,12 @@
 pkgname=pacman-ETJAKEOC
-pkgver=7.0.0.r79.g655be2f
+pkgver=7.1.0.r10.gbdedf62
 pkgrel=1
 pkgdesc="A library-based package manager with dependency support - with proper support, no Rust ever!"
 arch=('x86_64')
 url="https://www.archlinux.org/pacman/"
 license=('GPL-2.0-or-later')
 depends=(bash coreutils curl libcurl.so gawk gettext glibc gnupg
-  gpgme libgpgme.so grep libarchive libarchive.so openssl libcrypto.so
-  pacman-mirrorlist systemd)
+  gpgme libgpgme.so grep libarchive libarchive.so openssl libcrypto.so)
 makedepends=(asciidoc doxygen git meson)
 checkdepends=(fakechroot python)
 provides=('libalpm.so' 'pacman')
