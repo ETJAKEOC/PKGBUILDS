@@ -1,0 +1,24 @@
+pkgname=lib32-libdisplay-info
+_pkgname=libdisplay-info
+pkgver=0.3.0
+pkgrel=1
+arch=(x86_64)
+url="https://gitlab.freedesktop.org/emersion/libdisplay-info"
+license=('MIT')
+depends=('lib32-json-c')
+makedepends=('meson' 'ninja' 'clang' 'pkgconf')
+source=("https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/${pkgver}/libdisplay-info-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  arch-meson32 build libdisplay-info-${pkgver} \
+	--buildtype=release --includedir=include-DO-NOT-INSTALL
+  ninja -C build
+}
+
+package() {
+  DESTDIR="$pkgdir" ninja install -C build
+  rm -rf "$pkgdir"/usr/include-DO-NOT-INSTALL
+  rm -f "$pkgdir"/usr/bin/*
+  rm -rf "$pkgdir"/usr/lib32/cmake
+}
