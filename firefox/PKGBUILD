@@ -1,5 +1,5 @@
 pkgname=firefox-3900XT
-pkgver=147.0a1+20251124.1+hdca44e6b1f20
+pkgver=147.0a1+20251207.1+h231e63dd0f3e
 pkgrel=1
 pkgdesc="Fast, Private & Safe Web Browser (Nightly version) Full LTO + PGO - Ryzen 9 3900XT tuned"
 url="https://www.mozilla.org/firefox/channel/desktop/#nightly"
@@ -13,7 +13,7 @@ source=(hg+$_repo expect.sh mozconfig google-api-key firefox-symbolic.svg firefo
 validpgpkeys=(14F26682D0916CDD81E37B6D61B7B526D98F0353)
 sha256sums=('SKIP'
             'e34845d2b8f9e1f81cda38568af99b33e6182024dfc45e6536b538ff6a90dc8e'
-            'SKIP'
+            '0040aaab8495c1f9ba170bf5882c8744b12a4fde3eeb8eaa65313e680d9d44e9'
             'e53bfcbdb636a8089c2d873565f607310df87d1f86c2cd67835a4ec5e9090f82'
             'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9'
             'bff6d762411d77c9eea4f6fa10edd891e94366c44bd581054c62fe50df112eee'

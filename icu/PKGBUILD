@@ -1,0 +1,30 @@
+pkgname=icu
+pkgver=78.1
+pkgrel=1
+pkgdesc="International Components for Unicode library"
+arch=(x86_64)
+url="https://icu.unicode.org"
+license=('LicenseRef-Unicode-3.0'
+         'BSD-2-Clause'
+         'BSD-3-Clause'
+         'NAIST-2003')
+depends=('gcc-libs' 'glibc' 'sh')
+makedepends=('python')
+provides=(libicu{data,i18n,io,test,tu,uc}.so)
+source=(git+https://github.com/unicode-org/icu.git)
+sha512sums=('SKIP')
+
+build() {
+  cd icu/icu4c/source
+  ./configure --prefix=/usr \
+	--sysconfdir=/etc \
+	--mandir=/usr/share/man \
+	--sbindir=/usr/bin
+  LLVM=1 LLVM_IAS=1 make
+}
+
+package() {
+  cd icu/icu4c/source
+  DESTDIR="${pkgdir}" make install
+  install -Dm644 ../LICENSE "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE
+}
