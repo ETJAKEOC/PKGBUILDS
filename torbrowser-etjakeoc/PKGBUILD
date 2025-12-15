@@ -1,5 +1,5 @@
 pkgname=torbrowser-etjakeoc
-pkgver=15.0.2
+pkgver=15.0.3
 pkgrel=1
 pkgdesc="Custom compile of the TOR browser, verified against the TOR keys, from ETJAKEOC"
 arch=('any')
