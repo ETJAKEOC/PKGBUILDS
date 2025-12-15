@@ -1,0 +1,38 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+
+pkgname=czkawka-git
+pkgver=10.0.0
+pkgrel=1
+pkgdesc="Czkawka - fast duplicate & lint finder (CLI + GUI) (git build)"
+url="https://github.com/qarmin/czkawka"
+license=('MIT' 'CC-BY-4.0')
+arch=('x86_64')
+depends=('glibc' 'libheif' 'gtk4' 'gdk-pixbuf2' 'cairo' 'pango' 'hicolor-icon-theme')
+makedepends=('git' 'rust' 'cargo' 'pkgconf' 'glib2' 'gtk4' 'gdk-pixbuf2' 'cairo' 'pango' 'hicolor-icon-theme')
+optdepends=('libraw: raw image support' 'libavif: avif image support')
+source=("git+https://github.com/qarmin/czkawka.git")
+sha256sums=('SKIP')
+options=('ccache' 'lto' 'buildflags' 'makeflags')
+
+pkgver() {
+  cd "$srcdir/czkawka"
+  echo "$(git describe --tags --abbrev=0 | sed 's/^v//')"
+}
+
+build() {
+  cd "$srcdir/czkawka"
+  export CARGO_HOME="${srcdir}/cargo"
+  cargo build --release \
+    --bin czkawka_gui \
+    --bin czkawka_cli \
+    --features heif,libraw,libavif \
+    --verbose
+}
+
+package() {
+  cd "$srcdir/czkawka"
+  install -Dm755 "target/release/czkawka_cli" \
+    "$pkgdir/usr/bin/czkawka_cli"
+  install -Dm755 "target/release/czkawka_gui" \
+    "$pkgdir/usr/bin/czkawka_gui"
+}
