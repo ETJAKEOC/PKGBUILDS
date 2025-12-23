@@ -18,7 +18,7 @@ depends=('boost-libs' 'curl' 'enet' 'libogg' 'libpng' 'libvorbis'
          'libxml2' 'openal' 'sdl2' 'wxwidgets-gtk3' 'zlib' 'libgl' 'glu' 'fmt'
          'gloox' 'miniupnpc' 'icu' 'nspr' 'libsodium' 'which')
 makedepends=('binutils' 'boost' 'cmake' 'mesa' 'zip' 'libsm' 'rust' 'git' 'python' 'llvm')
-options=('buildsflags' '!ccache' 'lto' 'makeflags' 'strip')
+options=('buildflags' '!ccache' 'lto' 'makeflags' 'strip')
 source=(0ad-${_pkgver}.tar.xz::"${_url}-build.tar.xz"
 	0ad-data-${_pkgver}.tar.xz::"${_url}-data.tar.xz"
         boost-1.89.patch)
