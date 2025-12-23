@@ -1,0 +1,61 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=0ad-git
+pkgver=a26.2125.r067a7abc72
+pkgrel=1
+pkgdesc="Real-time strategy game of ancient warfare (development version)"
+arch=('x86_64')
+url="https://play0ad.com"
+license=('GPL2' 'MIT')
+depends=('awk' 'boost' 'boost-libs' 'cmake' 'curl' 'enet' 'fmt' 'gcc' 'gloox' 'grep' 'icu' 'libgl' 'libogg' 'libpng' 'libsodium' 'libvorbis' 'libxml2' 'llvm' 'm4' 'make' 'miniupnpc' 'openal' 'openexr' 'patch' 'pkg-config' 'python' 'rust' 'sdl2' 'subversion' 'wxwidgets-gtk3' 'zip' 'zlib')
+makedepends=('git' 'pkg-config' 'make')
+provides=('0ad' '0ad-data')
+conflicts=('0ad' '0ad-data')
+options=('!ccache' 'buildflags' 'lto' 'makeflags' 'strip')
+source=("git+https://gitea.wildfiregames.com/0ad/0ad.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/0ad"
+  git describe --tags --long --dirty | sed 's/^A//' | sed 's/-/./g' | sed 's/\.g/\.r/'
+}
+
+prepare() {
+  cd "$srcdir/0ad"
+  git submodule update --init --recursive
+}
+
+build() {
+  cd "$srcdir/0ad/libraries"
+  export CMAKE_POLICY_VERSION_MINIMUM=3.5
+  ./build-source-libs.sh
+
+  cd ../build/workspaces
+  ./update-workspaces.sh -j$(nproc) --with-lto \
+  --without-pch --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data
+
+  cd gcc
+  LLVM=1 LLVM_IAS=1 make -j$(nproc)
+}
+
+package() {
+  cd "$srcdir/0ad"
+
+  # Binary
+  install -Dm755 binaries/system/pyrogenesis \
+    "$pkgdir/usr/bin/0ad"
+
+  # Data files
+  install -d "$pkgdir/usr/share/0ad"
+  cp -r binaries/data/* "$pkgdir/usr/share/0ad/"
+
+  # Desktop entry & icon (if present)
+  if [[ -f build/resources/0ad.desktop ]]; then
+    install -Dm644 build/resources/0ad.desktop \
+      "$pkgdir/usr/share/applications/0ad.desktop"
+  fi
+
+  if [[ -f build/resources/0ad.png ]]; then
+    install -Dm644 build/resources/0ad.png \
+      "$pkgdir/usr/share/pixmaps/0ad.png"
+  fi
+}
