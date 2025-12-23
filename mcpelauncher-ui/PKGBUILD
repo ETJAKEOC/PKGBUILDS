@@ -1,5 +1,5 @@
 pkgname=mcpelauncher-ui
-pkgver=1.5.3
+pkgver=1.5.5
 pkgrel=1
 pkgdesc="Minecraft: PE Linux launcher UI"
 arch=('x86_64')

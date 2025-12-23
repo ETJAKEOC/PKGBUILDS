@@ -1,0 +1,60 @@
+# Maintainer: Sven-Hendrik Haase <svenstaro@archlinux.org>
+# Contributor: t3ddy  <t3ddy1988 "at" gmail {dot} com>
+# Contributor: Adrián Chaves Fernández (Gallaecio) <adriyetichaves@gmail.com>
+
+# Combined monolithic-package by ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=0ad-monolithic
+pkgver=a27.1
+_pkgver=0.27.1
+pkgrel=1
+pkgdesc="Cross-platform, 3D and historically-based real-time strategy game"
+arch=('x86_64')
+url="http://play0ad.com/"
+license=('GPL-2.0-or-later' 'CC-BY-NC-SA-3.0')
+provides=('0ad' '0ad-data')
+conflicts=('0ad' '0ad-data')
+depends=('boost-libs' 'curl' 'enet' 'libogg' 'libpng' 'libvorbis'
+         'libxml2' 'openal' 'sdl2' 'wxwidgets-gtk3' 'zlib' 'libgl' 'glu' 'fmt'
+         'gloox' 'miniupnpc' 'icu' 'nspr' 'libsodium' 'which')
+makedepends=('binutils' 'boost' 'cmake' 'mesa' 'zip' 'libsm' 'rust' 'git' 'python' 'llvm')
+options=('strip' 'ccache' 'lto' 'buildflags' 'makeflags')
+source=(0ad-$_pkgver::"https://releases.wildfiregames.com/0ad-$_pkgver-unix-build.tar.xz"
+        boost-1.89.patch
+	0ad-data-$_pkgver::"https://releases.wildfiregames.com/0ad-${_pkgver}-unix-data.tar.xz")
+sha512sums=('7ddc355afed44511f3c62bb4119e308f921fc9624980a3171853d923042777eeb248a1ce326d3768f23596d75e8346025321d7d72d6fa3b1106a5818ca62b40d'
+            'fa3741c82c2ea037f47c1466c29b5b5af2eb921f2f4033f4f7db8999c712b68402471a4015b39dfbac2d3fd82c30afac89b3aef01bf01c7f01b2097187206f87'
+	    '8d286d4c39bd79f634a71a7959cbc407299ffc1ad53fa27be0fca94195360d8a0c238f64137c1e32a4b5ba66a3a11b86aa8eeed8501253e91ec4767f1054a1d3')
+
+prepare() {
+  cd "0ad-$_pkgver"
+  patch -p1 -i ../boost-1.89.patch
+}
+
+build() {
+  cd "0ad-$_pkgver"
+
+  export CMAKE_POLICY_VERSION_MINIMUM=3.5
+  cd libraries
+  ./build-source-libs.sh
+  cd ../build/workspaces
+
+  ./update-workspaces.sh -j$(nproc) --with-lto --without-pch \
+  --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data
+
+  cd gcc
+  LLVM=1 LLVM_IAS=1 make -j$(nproc)
+}
+
+package() {
+  cd "0ad-$_pkgver"
+  install -d "${pkgdir}"/usr/{bin,lib/0ad,share/"0ad"/data}
+  install -Dm755 binaries/system/pyrogenesis "${pkgdir}/usr/bin"
+  install -Dm755 binaries/system/*.so "${pkgdir}/usr/lib/0ad"
+  install -Dm755 build/resources/0ad.sh "${pkgdir}/usr/bin/0ad"
+  install -Dm644 build/resources/0ad.desktop "${pkgdir}/usr/share/applications/0ad.desktop"
+  install -Dm644 build/resources/0ad.png "${pkgdir}/usr/share/pixmaps/0ad.png"
+
+  cd "0ad-data-$_pkgver"
+  install -d "${pkgdir}/usr/share/0ad"
+  cp -r "binaries/data" "${pkgdir}/usr/share/0ad"
+}
