@@ -1,10 +1,10 @@
 [Desktop Entry]
 Name=ChatGPT Electron
-GenericName=Circuit Simulator
-Comment=Native-like ChatGPT Electron wrapper using Electron
-Exec=chatgpt-electron %U
+GenericName=ChatGPT
+Comment=Native-like ChatGPT Electron wrapper
+Exec=/usr/bin/chatgpt-electron %U
 Icon=chatgpt-electron
 Type=Application
-Categories=Education;Internet;Science;
+Categories=Internet;
 StartupNotify=true
 StartupWMClass=chatgpt-electron
