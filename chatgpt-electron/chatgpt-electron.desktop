@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=EveryCircuit
+GenericName=Circuit Simulator
+Comment=Native-like EveryCircuit wrapper using Electron
+Exec=everycircuit %U
+Icon=everycircuit
+Type=Application
+Categories=Education;Electronics;Science;
+StartupNotify=true
+StartupWMClass=everycircuit
