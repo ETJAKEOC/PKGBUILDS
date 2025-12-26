@@ -1,6 +1,6 @@
 pkgname=mesa-meta-git
 pkgdesc="an open-source implementation of the OpenGL specification, git version, both x86_64 and i386 in one metapackage"
-pkgver=26.0.0_devel.216398.c576d64801d.d41d8cd
+pkgver=26.0.0_devel.216463.7219411f78f.d41d8cd
 pkgrel=1
 arch=('x86_64')
 makedepends=('git' 'xorgproto' 'meson' 'libxml2' 'libvdpau' 'libva' 'elfutils' 'libxrandr' 'glslang' 'directx-headers-git' 'python-mako' 'python-ply' 'cbindgen' 'wayland-protocols' 'python-packaging' 'python-pyaml' 'lib32-glibc' 'lib32-libdrm' 'lib32-vulkan-icd-loader')

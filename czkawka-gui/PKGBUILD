@@ -2,7 +2,7 @@
 
 pkgname=czkawka-git
 pkgver=10.0.0
-pkgrel=1
+pkgrel=420
 pkgdesc="Czkawka - fast duplicate & lint finder (CLI + GUI) (git build)"
 url="https://github.com/qarmin/czkawka"
 license=('MIT' 'CC-BY-4.0')

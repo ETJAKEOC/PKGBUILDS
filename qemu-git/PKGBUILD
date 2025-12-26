@@ -1,6 +1,6 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 pkgname=qemu-full-git
-pkgver=10.1.0.r1969.g53b41bb789
+pkgver=10.2.0.r1.g8dd5bceb2f
 pkgrel=1
 epoch=25
 arch=(x86_64)
@@ -33,7 +33,7 @@ qemu-user qemu-vhost-user-gpu
 )
 conflicts=("${provides[@]}")
 
-options=(!debug)
+options=('!debug' 'buildflags' 'ccache' 'lto' 'makeflags' 'strip')
 
 source=(
 git+https://gitlab.com/qemu-project/qemu.git
@@ -53,35 +53,12 @@ pkgver() {
 }
 
 prepare() {
-    # Prepare qemu and all submodules
     cd "$srcdir/${_gitname}"
     git submodule update --init --recursive
     mkdir -p "$srcdir/${_gitname}/build"
 }
 
-# Centralized environment setup
-_setup_env() {
-    export CC=clang
-    export CXX=clang++
-    export LD=lld
-    export AR=llvm-ar
-    export NM=llvm-nm
-    export STRIP=llvm-strip
-    export OBJCOPY=llvm-objcopy
-    export OBJDUMP=llvm-objdump
-    export RANLIB=llvm-ranlib
-    export HOSTCC=clang
-    export HOSTCXX=clang++
-
-    export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
-    export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -ffunction-sections -fdata-sections -flto=full -g0"
-    export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto=full -ffunction-sections -fdata-sections -g0"
-    export LDFLAGS="-fuse-ld=lld -flto=full -O3 -Wl,--gc-sections -pthread"
-    export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker-plugin-lto -C panic=abort -C debuginfo=0 -C strip=debuginfo"
-}
-
 build() {
-    _setup_env
     cd "$srcdir/${_gitname}/build"
     ../configure \
         --prefix=/usr \

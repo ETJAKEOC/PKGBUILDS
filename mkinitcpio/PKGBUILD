@@ -1,6 +1,6 @@
 pkgname=mkinitcpio
 pkgver=40
-pkgrel=3
+pkgrel=420
 pkgdesc="Modular initramfs image creation utility"
 arch=('any')
 url='https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio'
@@ -12,13 +12,9 @@ makedepends=('asciidoctor')
 optdepends=('xz' 'bzip2' 'lzop' 'lz4' 'mkinitcpio-nfs-utils' 'systemd-ukify')
 provides=('initramfs')
 backup=('etc/mkinitcpio.conf')
-source=("${pkgname}::git+${url}" '0001-trigger.patch')
-sha512sums=('SKIP' 'SKIP')
-
-prepare() {
-  cd ${pkgname}
-  patch -Np1 < ../0001-trigger.patch
-}
+source=("${pkgname}::git+${url}")
+sha512sums=('SKIP')
+options=('buildflags' 'ccache' 'lto' 'makeflags' 'strip')
 
 build() {
   cd ${pkgname}
