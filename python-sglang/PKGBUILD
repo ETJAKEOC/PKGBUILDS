@@ -1,0 +1,33 @@
+# Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
+pkgname=python-sglang
+pkgver=0.3.0.r532.gee71e773e1
+pkgrel=1
+pkgdesc="SGLang: Structured Language Model Framework (Python package)"
+arch=('x86_64')
+url="https://github.com/sgl-project/sglang"
+license=('MIT')
+depends=(python-typing_extensions)
+makedepends=(git python-pip python-setuptools python-wheel python-pyproject-hooks protobuf python-protobuf python-grpcio python-grpcio-tools python-absl)
+source=("git+https://github.com/sgl-project/sglang.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "${srcdir}/sglang"
+  git describe --tags --long \
+    | sed 's/^v//' \
+    | sed 's/.*v\([0-9][^+]*\)-\([0-9]*\)-g/\1.r\2.g/'
+}
+
+build() {
+  cd "${srcdir}/sglang/python"
+  python -m pip install . \
+    --no-deps \
+    --no-build-isolation \
+    --root="${pkgdir}" \
+    --prefix=/usr
+}
+
+package() {
+  cd "${srcdir}/sglang"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

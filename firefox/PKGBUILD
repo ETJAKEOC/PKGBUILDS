@@ -1,24 +1,24 @@
 pkgname=firefox-3900XT
-pkgver=147.0a1+20251207.1+h231e63dd0f3e
+pkgver=149.0a1+20260116.1+h79c680d8be01
 pkgrel=1
-pkgdesc="Fast, Private & Safe Web Browser (Nightly version) Full LTO + PGO - Ryzen 9 3900XT tuned"
+pkgdesc="Fast, Private & Safe Web Browser (Nightly version) Full LTO + PGO + libc++ - Ryzen 9 3900XT tuned"
 url="https://www.mozilla.org/firefox/channel/desktop/#nightly"
 arch=(x86_64)
 license=(MPL-2.0)
-depends=(alsa-lib at-spi2-core bash cairo dbus ffmpeg4.4 fontconfig freetype2 gcc-libs gdk-pixbuf2 glib2 glibc gtk3 hicolor-icon-theme hunspell-en_US libpulse libx11 libxcb libxcomposite libxdamage libxext libxfixes libxrandr libxss libxt mime-types nspr nss pango time ttf-font)
-makedepends=(cbindgen clang compiler-rt diffutils dump_syms expect imake jack lld llvm mercurial mesa nasm nodejs python python-async_generator python-selenium-bin python-trio-websocket python-wsproto rust unzip wasi-compiler-rt wasi-libc wasi-libc++ wasi-libc++abi xorg-server-xvfb yasm zip)
-options=(!emptydirs !lto !makeflags !buildflags strip)
-_repo=https://hg.mozilla.org/mozilla-central
-source=(hg+$_repo expect.sh mozconfig google-api-key firefox-symbolic.svg firefox.desktop org.mozilla.firefox.metainfo.xml)
-validpgpkeys=(14F26682D0916CDD81E37B6D61B7B526D98F0353)
+depends=(alsa-lib at-spi2-core bash cairo dbus ffmpeg4.4 fontconfig freetype2 gcc-libs gdk-pixbuf2 glib2 glibc gtk3 hicolor-icon-theme hunspell-en_US libpng-apng libpulse libx11 libxcb libxcomposite libxdamage libxext libxfixes libxrandr libxss libxt mime-types nspr nss pango time ttf-font)
+makedepends=(cbindgen clang compiler-rt diffutils dump_syms expect imake lld llvm mercurial mesa nasm nodejs python python-async_generator python-selenium-bin python-trio-websocket python-wsproto sccache rust unzip wasi-compiler-rt wasi-libc wasi-libc++ wasi-libc++abi xorg-server-xvfb yasm zip)
+_repo=https://hg-edge.mozilla.org/mozilla-central
+source=(hg+$_repo expect.sh mozconfig firefox-symbolic.svg firefox.desktop org.mozilla.firefox.metainfo.xml)
 sha256sums=('SKIP'
-            'e34845d2b8f9e1f81cda38568af99b33e6182024dfc45e6536b538ff6a90dc8e'
+            'SKIP'
             '0040aaab8495c1f9ba170bf5882c8744b12a4fde3eeb8eaa65313e680d9d44e9'
-            'e53bfcbdb636a8089c2d873565f607310df87d1f86c2cd67835a4ec5e9090f82'
             'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9'
             'bff6d762411d77c9eea4f6fa10edd891e94366c44bd581054c62fe50df112eee'
-            'ef8128868fc61282008ce1d82d0b1ef67588f9b92f7436debb84d42850b2d055'
+            '22d7d2b4d8a2ed7caef4ed193f7c4942b4ed15a5f9bcbd47197ae0a9ef45f214'
 )
+options=('!debug' '!docs' '!emptydirs' '!ccache' '!lto' 'buildflags' 'makeflags' 'strip')
+
+_where="$(pwd)"
 
 pkgver() {
   cd mozilla-central
@@ -40,31 +40,11 @@ pkgver() {
 
 prepare() {
   mkdir -p "${srcdir}/mozbuild"
-  chmod +x "${srcdir}/expect.sh" && mv "${srcdir}/expect.sh" "${srcdir}/mozilla-central"
-  mv "${srcdir}/mozconfig" "${srcdir}/mozilla-central/mozconfig"
-  mv "${srcdir}/google-api-key" "${srcdir}/mozilla-central/google-api-key"
+  cp -a "${_where}/"{expect.sh,mozconfig} "${srcdir}/mozilla-central"
+  printf "AIzaSyDwr302FpOSkGRpLlUpPThNTDPbXcIn_FM" > "${srcdir}/mozilla-central/google-api-key"
 }
 
 _env() {
-  # Toolchain consistency
-  export CC=clang
-  export CPP=clang-cpp
-  export CXX=clang++
-  export LD=lld
-  export CC_LD=lld
-  export CXX_LD=lld
-  export AR=llvm-ar
-  export NM=llvm-nm
-  export STRIP=llvm-strip
-  export OBJCOPY=llvm-objcopy
-  export OBJDUMP=llvm-objdump
-  export READELF=llvm-readelf
-  export RANLIB=llvm-ranlib
-  export HOSTCC=clang
-  export HOSTCXX=clang++
-  export HOSTAR=llvm-ar
-  export HOSTLD=lld
-
   # Generic tuning
   export JS_GC_SMALL_CHUNK_SIZE=4096
   export MOZ_JIT_THREAD_PRIORITY=high
@@ -93,31 +73,26 @@ _env() {
   export LLVM_PROFDATA=/usr/bin/llvm-profdata
   export LLVM_PROFILE_FILE="code-%p.profraw"
   export SRC_DIR="$srcdir"
-
-  # Compiler tuning
-  export CPPFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -fno-semantic-interposition"
-  export CFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -fno-semantic-interposition -fvisibility-inlines-hidden"
-  export CXXFLAGS="-O3 -g0 -march=znver2 -mtune=znver2 -pipe -pthread -fomit-frame-pointer -fno-plt -fno-semantic-interposition -fvisibility-inlines-hidden"
-  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--sort-common -fuse-ld=lld -Wl,--icf=all -Wl,--no-keep-memory -Wl,--lto-O3"
-  export RUSTFLAGS="-C target-cpu=znver2 -C opt-level=3 -C link-arg=-fuse-ld=lld -C codegen-units=1 -C debuginfo=0 -C strip=debuginfo -C target-feature=+sse4.2,+avx2,+fma"
 }
 
 build() {
   _env
   cd "${srcdir}/mozilla-central"
-  ulimit -n 16384
+  ulimit -n 20480
 
   # 1. Bootstrap environment
   ./expect.sh
+#  ./mach bootstrap
 
   # 2. Upgrade pip & setuptools
   ./mach python -m pip install --upgrade glean_parser
 
   # 3. Instrumented build for PGO
+  export MOZ_PROFILE_GENERATE="$srcdir/mozilla-central/obj/instrumented/merged.profdata"
   ./mach build
 
   # 4. Run Mozilla’s built-in PGO profiling session
-  taskset -c 0-23 nice -n -10 ionice -c2 -n0 ./mach python build/pgo/profileserver.py --binary obj/dist/bin/firefox
+  ./mach python build/pgo/profileserver.py --binary obj/dist/bin/firefox
 
   # 5. Merge generated profile data if present
   mapfile -t profraw_files < <(find ./ -type f -name '*.profraw')
@@ -169,9 +144,9 @@ package() {
   install -Dvm644 /dev/stdin "$vendorjs" <<END
 pref("intl.locale.requested", "en_US");
 pref("spellchecker.dictionary_path", "/usr/share/hunspell");
-pref("browser.shell.checkDefaultBrowser", false);
+pref("browser.shell.checkDefaultBrowser", true);
 pref("extensions.autoDisableScopes", 11);
-pref("browser.gnome-search-provider.enabled", true);
+pref("browser.gnome-search-provider.enabled", false);
 END
   local distini="$pkgdir/usr/lib/firefox/distribution/distribution.ini"
   install -Dvm644 /dev/stdin "$distini" <<END

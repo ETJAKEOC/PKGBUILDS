@@ -1,22 +1,23 @@
 pkgname=mesa-meta-git
 pkgdesc="an open-source implementation of the OpenGL specification, git version, both x86_64 and i386 in one metapackage"
-pkgver=26.0.0_devel.216463.7219411f78f.d41d8cd
+pkgver=26.0.0_devel.d41d8cd
 pkgrel=1
 arch=('x86_64')
 makedepends=('git' 'xorgproto' 'meson' 'libxml2' 'libvdpau' 'libva' 'elfutils' 'libxrandr' 'glslang' 'directx-headers-git' 'python-mako' 'python-ply' 'cbindgen' 'wayland-protocols' 'python-packaging' 'python-pyaml' 'lib32-glibc' 'lib32-libdrm' 'lib32-vulkan-icd-loader')
 depends=('libdrm' 'libxxf86vm' 'libxdamage' 'libxshmfence' 'libelf' 'libglvnd' 'wayland' 'lm_sensors' 'vulkan-icd-loader' 'zstd' 'expat' 'gcc-libs' 'libxfixes' 'libx11' 'systemd-libs' 'libxext' 'libxcb' 'glibc' 'zlib' 'python' 'xcb-util-keysyms')
 optdepends=('opengl-man-pages: for the OpenGL API man pages')
 provides=('vulkan-mesa-layers' 'opencl-driver' 'opengl-driver' 'vulkan-driver' 'vulkan-radeon' 'vulkan-swrast' 'vulkan-virtio' 'libva-mesa-driver' 'mesa-vdpau' 'mesa-libgl' 'mesa' 'lib32-mesa' 'mesa-git' 'lib32-mesa-git')
-conflicts=('vulkan-mesa-layers' 'opencl-clover-mesa' 'vulkan-radeon' 'vulkan-swrast' 'vulkan-virtio' 'libva-mesa-driver' 'mesa-vdpau' 'mesa-libgl' 'mesa' 'lib32-mesa' 'mesa-git' 'lib32-mesa-git')
+conflicts=($provides)
 url="https://www.mesa3d.org"
 license=('custom')
-source=('mesa::git+https://gitlab.freedesktop.org/mesa/mesa.git#branch=main' 'LICENSE')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
-options=('ccache' 'lto' 'buildflags' 'makeflags')
+source=('mesa::git+https://gitlab.freedesktop.org/mesa/mesa.git')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
+
 declare -A _crates=(
-   proc-macro2    1.0.103
-   quote          1.0.42
-   syn            2.0.111
+   proc-macro2    1.0.105
+   quote          1.0.43
+   syn            2.0.114
    unicode-ident  1.0.22
 )
 
@@ -37,7 +38,7 @@ pkgver() {
         _patchver="$_patchver$(md5sum $srcdir/$_patchfile | cut -c1-32)"
     done
     _patchver="$(echo -n $_patchver | md5sum | cut -c1-7)"
-    echo ${_ver/-/_}.$(git rev-list --count HEAD).$(git rev-parse --short HEAD).$_patchver
+    echo ${_ver/-/_}.$_patchver
 }
 
 prepare() {
@@ -64,33 +65,96 @@ prepare() {
 }
 
 build () {
-    arch-meson build mesa -D gallium-drivers=r300,r600,radeonsi,virgl,svga,softpipe,llvmpipe,d3d12,v3d -D glvnd=enabled -D gallium-d3d12-graphics=auto \
-    -D android-libbacktrace=disabled -D b_ndebug=true -D b_lto=true -D egl=enabled -D gallium-extra-hud=true -D opengl=true -D gallium-d3d12-video=enabled \
-    -D gallium-d3d10umd=false -D gallium-rusticl=true -D gallium-va=enabled -D xlib-lease=enabled -D gallium-mediafoundation=disabled \
-    -D gbm=enabled -D gles1=disabled -D gles2=enabled -D intel-rt=disabled -D glx-direct=true -D build-tests=false\
-    -D glvnd=enabled -D glx=dri -D libunwind=enabled -D llvm=enabled -D lmsensors=enabled -D shader-cache-max-size=16G \
-    -D microsoft-clc=disabled -D platforms=x11,wayland -D valgrind=disabled -D shader-cache=enabled -D video-codecs=h264dec,h264enc,h265dec,h265enc,vc1dec,vp9dec \
-    -D vulkan-drivers=amd,swrast,virtio,gfxstream -D vulkan-layers=device-select,overlay,screenshot -D draw-use-llvm=true \
-    -D tools=[] -D zstd=enabled -D shared-llvm=enabled -D amd-use-llvm=true -D static-libclc=all -D vulkan-beta=true
+  export CC=/usr/bin/clang
+  export CXX=/usr/bin/clang++
+  export CPP=/usr/bin/clang-cpp
+  export LD=/usr/bin/lld
+  export CC_LD=/usr/bin/lld
+  export CXX_LD=/usr/bin/lld
+  export AR=/usr/bin/llvm-ar
+  export NM=/usr/bin/llvm-nm
+  export STRIP=/usr/bin/llvm-strip
+  export OBJCOPY=/usr/bin/llvm-objcopy
+  export OBJDUMP=/usr/bin/llvm-objdump
+  export READELF=/usr/bin/llvm-readelf
+  export RANLIB=/usr/bin/llvm-ranlib
+
+local _meson_flags=(
+  # Core Meson / Build System Setup
+  -D prefix=/usr
+  -D backend=ninja
+  -D default_library=shared
+  -D b_colorout=always
+
+  # Build Optimization & Hardening
+  -D b_pie=true
+  -D b_staticpic=true
+  -D b_ndebug=true
+  -D python.bytecompile=2
+  -D microsoft-clc=disabled
+
+  # Graphics APIs (OpenGL / EGL / GLX)
+  -D egl=enabled
+  -D opengl=true
+  -D gbm=enabled
+  -D gles1=disabled
+  -D gles2=enabled
+  -D glx=dri
+  -D glx-direct=true
+  -D glvnd=enabled
+
+  # Platforms & Windowing Systems
+  -D platforms=x11,wayland
+  -D xlib-lease=enabled
+
+  # Gallium Core
+  -D gallium-rusticl=false
+  -D gallium-extra-hud=true
+  -D gallium-va=enabled
+
+  # Disabled Gallium / D3D / Media Paths
+  -D gallium-d3d12-graphics=disabled
+  -D gallium-d3d12-video=disabled
+  -D gallium-d3d10umd=false
+  -D gallium-mediafoundation=disabled
+
+  # Vulkan Layers & Features
+  -D vulkan-layers=device-select,overlay,screenshot
+  -D vulkan-beta=true
+
+  # Video Acceleration & Codec Support
+  -D video-codecs=h264dec,h264enc,h265dec,h265enc,vc1dec,vp9dec
+
+  # Shader Cache & Compression
+  -D shader-cache=enabled
+  -D shader-cache-max-size=16G
+  -D zstd=enabled
+
+  # Debugging, Testing & Instrumentation
+  -D build-tests=false
+  -D valgrind=disabled
+  -D libunwind=enabled
+
+  # System Integration & Misc Options
+  -D lmsensors=enabled
+  -D android-libbacktrace=disabled
+  -D intel-rt=disabled
+  -D tools=[]
+)
+
+    meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=true -D draw-use-llvm=true -D b_lto=true -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream \
+        -D c_args="$CFLAGS" -D c_link_args="$LDFLAGS" -D cpp_args="$CPPFLAGS" -D cpp_link_args="$LDFLAGS"
     ninja -j$(nproc) -C build
 
-    arch-meson32 build32 mesa -D gallium-drivers=r300,r600,radeonsi,virgl,svga,softpipe,llvmpipe,d3d12,v3d -D glvnd=enabled -D rust_std=disabled \
-        -D android-libbacktrace=disabled -D b_ndebug=true -D b_lto=true -D egl=enabled -D gallium-extra-hud=true -D opengl=true \
-        -D gallium-d3d10umd=false -D gallium-rusticl=false -D gallium-va=enabled -D xlib-lease=enabled -D gallium-mediafoundation=disabled \
-        -D gbm=enabled -D gles1=disabled -D gles2=enabled -D intel-rt=disabled -D glx-direct=true -D build-tests=false\
-        -D glvnd=enabled -D glx=dri -D libunwind=enabled -D llvm=enabled -D lmsensors=enabled -D shader-cache-max-size=16G \
-        -D microsoft-clc=disabled -D platforms=x11,wayland -D valgrind=disabled -D shader-cache=enabled -D video-codecs=h264dec,h264enc,h265dec,h265enc,vc1dec,vp9dec \
-        -D vulkan-drivers=amd,swrast,virtio,gfxstream -D vulkan-layers=device-select,overlay,screenshot -D draw-use-llvm=true \
-        -D tools=[] -D zstd=enabled -D shared-llvm=enabled -D amd-use-llvm=true -D static-libclc=all -D vulkan-beta=true
+    meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D b_lto=false -D llvm=disabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream \
+        -D c_args="-m32 $CFLAGS" -D c_link_args="-m32 $LDFLAGS" -D cpp_args="-m32 $CPPFLAGS" -D  cpp_link_args="-m32 $LDFLAGS"
     ninja -j$(nproc) -C build32
 }
 
 package() {
-    DESTDIR="$pkgdir" ninja -j$(nproc) -C build install
+    mkdir -p "$pkgdir/usr/bin" "$pkgdir/usr/lib" "$pkgdir/usr/lib32" "$pkgdir/usr/share"
     DESTDIR="$pkgdir" ninja -j$(nproc) -C build32 install
-
-    ln -s /usr/lib/libGLX_mesa.so.0 "$pkgdir/usr/lib/libGLX_indirect.so.0"
-    ln -s /usr/lib32/libGLX_mesa.so.0 "$pkgdir/usr/lib32/libGLX_indirect.so.0"
-
-    install -m644 -Dt "$pkgdir/usr/share/licenses/$pkgname" "$srcdir/LICENSE"
+    DESTDIR="$pkgdir" ninja -j$(nproc) -C build install
+    ln -s usr/lib32/libGLX_mesa.so.0 "$pkgdir/usr/lib32/libGLX_indirect.so.0"
+    ln -s usr/lib/libGLX_mesa.so.0 "$pkgdir/usr/lib/libGLX_indirect.so.0"
 }

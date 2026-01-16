@@ -1,6 +1,6 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 pkgname=qemu-full-git
-pkgver=10.2.0.r1.g8dd5bceb2f
+pkgver=10.2.0.r476.gcf3e71d8fc
 pkgrel=1
 epoch=25
 arch=(x86_64)

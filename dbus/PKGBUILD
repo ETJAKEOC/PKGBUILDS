@@ -11,6 +11,7 @@ makedepends=(docbook-xsl doxygen git glib2 mallard-ducktype
   meson python qt5-tools systemd xmlto yelp-tools)
 source=("git+${url}.git" 0001-Arch-Linux-tweaks.patch dbus-reload.hook)
 b2sums=('SKIP' 'SKIP' 'SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
 prepare() {
   cd dbus
@@ -18,33 +19,36 @@ prepare() {
 }
 
 build() {
-  export CC=clang
-  export CXX=clang++
-  export AR=llvm-ar
-  export NM=llvm-nm
-  export RANLIB=llvm-ranlib
-  export STRIP=llvm-strip
-  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
-  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden"
-  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -pthread -fPIC -g0 -fno-plt -fvisibility=hidden"
-  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
-
   local meson_options=(
-    -Dprefix=/usr
+    --reconfigure
+    --optimization  3
+    --auto-features enabled
     -Ddefault_library=both
     -Ddebug=false
     -Dstrip=true
-    -D apparmor=disabled
-    -D dbus_user=dbus
-    -D kqueue=disabled
-    -D launchd=disabled
-    -D relocation=disabled
-    -D selinux=disabled
-    -D x11_autolaunch=disabled
+    -Dapparmor=disabled
+    -Ddbus_user=dbus
+    -Dkqueue=disabled
+    -Dlaunchd=disabled
+    -Drelocation=disabled
+    -Dselinux=disabled
+    -Dx11_autolaunch=disabled
+    -Dprefix=/usr
+    -Dlibdir=lib
+    -Db_pie=true
+    -Db_staticpic=true
+    -Db_lto=true
+    -Dpython.bytecompile=2
+    -Dbackend=ninja
+    -Db_colorout=always
+    -Dc_args="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+    -Dc_link_args="-Wl,--as-needed -Wl,--gc-sections -fuse-ld=ld.lld"
+    -Dcpp_args="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+    -Dcpp_link_args="-Wl,--as-needed -Wl,--gc-sections -fuse-ld=ld.lld"
   )
 
-  arch-meson dbus build "${meson_options[@]}"
-  /bin/meson.real compile -C build
+  meson dbus build "${meson_options[@]}"
+  ninja -C build
 }
 
 _pick() {
@@ -63,7 +67,7 @@ package_dbus() {
   conflicts=(libdbus)
   replaces=(libdbus)
 
-  /bin/meson.real install -C build --destdir "$pkgdir"
+  DESTDIR="$pkgdir" ninja install -C build
 
   _pick unit "$pkgdir"/usr/lib/systemd/{system,user}/dbus.service
   _pick docs "$pkgdir"/usr/share/doc

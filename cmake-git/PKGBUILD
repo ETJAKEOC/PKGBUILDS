@@ -1,6 +1,6 @@
 pkgname=cmake-git
-pkgver=4.2.0.rc1.146.ga1a8fbd0de
-pkgrel=1
+pkgver=4.2.1.758.g97ad58a86c
+pkgrel=420
 pkgdesc='A cross-platform open-source make system'
 arch=('x86_64')
 url="http://www.cmake.org/"
@@ -8,10 +8,10 @@ license=('custom')
 conflicts=('cmake')
 provides=('cmake')
 depends=('curl' 'libarchive' 'hicolor-icon-theme' 'jsoncpp' 'libjsoncpp.so' 'libuv' 'rhash' 'cppdap')
-makedepends=('qt6-base' 'python-sphinx' 'nlohmann-json' 'git')
-optdepends=('qt6-base: cmake-gui')
+makedepends=('qt6-base'  'nlohmann-json' 'git')
 source=('git+https://gitlab.kitware.com/cmake/cmake.git')
 md5sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
 pkgver() {
     cd "$srcdir/cmake"
@@ -20,16 +20,50 @@ pkgver() {
 
 build() {
   cd "$srcdir/cmake"
-  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
-  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
-  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0"
-  export LDFLAGS="-fuse-ld=lld -O3 -flto"
-  ./bootstrap --prefix=/usr --mandir=share/man --docdir=share/doc/cmake --datadir=share/cmake \
-  --sphinx-man --system-libs --qt-gui --parallel=24
-  CC=clang CPP=clang-cpp CXX=clang++ LD=lld CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" CXXFLAGS="$CXXFLAGS" LDFLAGS="$LDFLAGS" LLVM=1 LLVM_IAS=1 make -j$(nproc)
+
+  export CC=/usr/bin/clang
+  export CPP=/usr/bin/clang-cpp
+  export CXX=/usr/bin/clang++
+  export LD=/usr/bin/lld
+  export CC_LD=/usr/bin/lld
+  export CXX_LD=/usr/bin/lld
+  export AR=/usr/bin/llvm-ar
+  export NM=/usr/bin/llvm-nm
+  export STRIP=/usr/bin/llvm-strip
+  export OBJCOPY=/usr/bin/llvm-objcopy
+  export OBJDUMP=/usr/bin/llvm-objdump
+  export READELF=/usr/bin/llvm-readelf
+  export RANLIB=/usr/bin/llvm-ranlib
+  export HOSTCC=/usr/bin/clang
+  export HOSTCXX=/usr/bin/clang++
+  export HOSTAR=/usr/bin/llvm-ar
+  export HOSTLD=/usr/bin/lld
+  export COMFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -flto=thin"
+  export CPPFLAGS="$COMFLAGS"
+  export CFLAGS="$COMFLAGS"
+  export CXXFLAGS="$COMFLAGS"
+  export LDFLAGS="-fuse-ld=lld -O3 -Wl,--icf=all -Wl,--gc-sections -flto=thin"
+
+  ./bootstrap --prefix=/usr --mandir=share/man --docdir=share/doc/cmake --datadir=share/cmake --enable-ccache --qt-gui --generator=Ninja \
+    --system-libs --system-cppdap --system-curl --system-expat --system-jsoncpp --system-zlib --system-bzip2 \
+    --system-liblzma --system-nghttp2 --system-zstd --system-libarchive --system-librhash --system-libuv \
+    --no-debugger -- -DCMAKE_UNITY_BUILD=OFF -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+  ninja
+}
+
+strip_elfs() {
+  while IFS= read -r -d '' f; do
+    file -b "$f" | grep -q ELF || continue
+    llvm-strip --strip-unneeded --keep-section=.eh_frame --keep-section=.eh_frame_hdr "$f"
+  done < <(
+    find "$pkgdir/usr/bin" \
+      -type f -perm -111 \
+      -print0
+  )
 }
 
 package() {
-  cd "$srcdir/cmake"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" ninja -C "$srcdir/cmake" install
+  rm -rf "$pkgdir/usr/share/"{emacs,vim}
+  strip_elfs
 }

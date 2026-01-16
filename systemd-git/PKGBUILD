@@ -16,7 +16,7 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
              'libpwquality' 'qrencode' 'lib32-gcc-libs' 'python-pefile')
 conflicts=("mkinitcpio<38-1" 'systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
 provides=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
-options=('!strip' '!ccache' 'lto' 'buildflags' 'makeflags')
+options=('!emptydirs' '!docs' '!debug' '!strip' '!ccache' '!lto' 'buildflags' 'makeflags')
 source=("$pkgbase::git+${url}.git"
         'systemd-user.pam'
         'systemd-hook'
@@ -52,7 +52,7 @@ build() {
     --auto-features enabled \
     -Db_pie=true \
     -Db_staticpic=true \
-    -Db_lto=true \
+    -Db_lto=false \
     -Dpython.bytecompile=2 \
     -Dbackend=ninja \
     -Db_colorout=always \
@@ -113,22 +113,22 @@ package_systemd-git() {
     'GPL-2.0-or-later' # udev
     'MIT-0' # documentation and config files
   )
-  depends=("systemd-libs-git=${pkgver}"
+  depends=("systemd-libs-git"
            'acl' 'libacl.so' 'bash' 'cryptsetup' 'libcryptsetup.so' 'dbus'
            'dbus-units' 'kbd' 'kmod' 'hwdata' 'libcap' 'libcap.so'
            'libgcrypt' 'libxcrypt' 'libcrypt.so' 'libidn2' 'lz4' 'pam'
            'libelf' 'libseccomp' 'libseccomp.so' 'util-linux' 'libblkid.so'
            'libmount.so' 'xz' 'pcre2' 'audit' 'libaudit.so'
            'openssl' 'libcrypto.so' 'libssl.so')
-  provides=('nss-myhostname' "systemd-tools=${pkgver}" "udev=${pkgver}")
-  provides+=("systemd=${pkgver}")
+  provides=('nss-myhostname' "systemd-tools" "udev")
+  provides+=("systemd")
   replaces=('nss-myhostname' 'systemd-tools' 'udev')
   conflicts=('nss-myhostname' 'systemd-tools' 'udev')
   conflicts+=('systemd')
   optdepends=('libmicrohttpd: systemd-journal-gatewayd and systemd-journal-remote'
               'quota-tools: kernel-level quota management'
               'systemd-sysvcompat: symlink package to provide sysvinit binaries'
-              "systemd-ukify-git=${pkgver}: combine kernel and initrd into a signed Unified Kernel Image"
+              "systemd-ukify-git: combine kernel and initrd into a signed Unified Kernel Image"
               'polkit: allow administration as unprivileged user'
               'python: Unified Kernel Image with ukify'
               'curl: systemd-journal-upload, machinectl pull-tar and pull-raw'
@@ -228,7 +228,7 @@ package_systemd-libs-git() {
     'GPL-2.0-or-later WITH Linux-syscall-note' # src/basic/linux/*
   )
   provides=('libsystemd' 'libsystemd.so' 'libudev.so')
-  provides+=("systemd-libs=${pkgver}")
+  provides+=("systemd-libs")
   conflicts=('libsystemd')
   conflicts+=('systemd-libs')
   replaces=('libsystemd')
@@ -244,8 +244,8 @@ package_systemd-sysvcompat-git() {
   pkgdesc+=' (git version)'
   conflicts=('sysvinit')
   conflicts+=('systemd-sysvcompat')
-  depends=("systemd-git=${pkgver}")
-  provides=("systemd-sysvcompat=${pkgver}")
+  depends=("systemd-git")
+  provides=("systemd-sysvcompat")
 
 #  install -D -m0644 -t "$pkgdir"/usr/share/man/man8 \
 #    build/man/{halt,poweroff,reboot,shutdown}.8

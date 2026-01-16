@@ -1,0 +1,52 @@
+pkgname=bolt-git
+pkgver=r1792.62454b8
+pkgrel=1
+pkgdesc="Thunderbolt 3 security system daemon"
+arch=('i686' 'x86_64')
+url="https://gitlab.freedesktop.org/bolt/bolt"
+license=('LGPL')
+depends=('polkit' 'systemd')
+makedepends=('asciidoc' 'meson' 'git')
+checkdepends=('umockdev')
+conflicts=('bolt')
+provides=('bolt')
+source=(git+https://gitlab.freedesktop.org/bolt/bolt.git)
+md5sums=('SKIP')
+options=(buildflags makeflags)
+
+pkgver() {
+  cd bolt
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd "${srcdir}"/bolt
+
+  install -d build
+  meson \
+    --reconfigure \
+    --optimization  3 \
+    --auto-features enabled \
+    -D	prefix=/usr \
+    -D	libdir=lib \
+    -D	b_pie=true \
+    -D	b_staticpic=true \
+    -D	b_lto=true \
+    -D	python.bytecompile=2 \
+    -D	backend=ninja \
+    -D	b_colorout=always \
+    -D	c_args="$CFLAGS" \
+    -D	c_link_args="$LDFLAGS" \
+    -D	cpp_args="$CPPFLAGS" \
+    -D	cpp_link_args="$LDFLAGS" \
+    -D  man=false \
+  build
+  ninja -v -C build
+}
+
+package() {
+  cd "${srcdir}"/bolt
+
+  DESTDIR="${pkgdir}" ninja -C build install
+  install -d -o root -g 102 -m 750 "${pkgdir}/usr/share/polkit-1/rules.d"
+}

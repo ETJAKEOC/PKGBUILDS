@@ -1,6 +1,6 @@
 pkgname=libplacebo
-pkgver=7.351.0
-pkgrel=2
+pkgver=7.351.0.0.g3188549f
+pkgrel=1
 pkgdesc='Reusable library for GPU-accelerated video/image rendering primitives'
 url='https://github.com/haasn/libplacebo'
 arch=('x86_64')
@@ -13,34 +13,53 @@ makedepends=(
   'libglvnd'
 )
 provides=('libplacebo.so')
-source=(git+https://code.videolan.org/videolan/libplacebo.git)
+source=(git+https://code.videolan.org/videolan/libplacebo.git#commit=3188549fba13bbdf3a5a98de2a38c2e71f04e21e)
 sha512sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
+
+pkgver() {
+    cd "${srcdir}/${pkgname}"
+    git describe --tags --match 'v[0-9]*' --always --long | sed -e 's/^v//' -e 's/-/./g'
+}
+
+prepare() {
+  cd "${srcdir}/${pkgname}"
+  git submodule update --init --recursive
+  sed -i 's/ET.parse(xmlfile)/ET.parse(xmlfile).getroot()/' src/vulkan/utils_gen.py
+}
 
 build() {
-  cd ${pkgname}
+  cd "${srcdir}/${pkgname}"
   CXXFLAGS+=" -I/usr/include/glslang"
-arch-meson build \
-    -Dprefix=/usr \
-    -Dlibdir=/usr/lib \
+  meson "${srcdir}/build" \
     -Dtests=true \
+    --reconfigure \
+    --optimization  3 \
+    --auto-features enabled \
+    -D prefix=/usr \
+    -D libdir=lib \
+    -D b_pie=true \
+    -D b_staticpic=true \
+    -D b_lto=true \
+    -D python.bytecompile=2 \
+    -D backend=ninja \
+    -D b_colorout=always \
+    -D c_args="$CFLAGS" \
+    -D c_link_args="$LDFLAGS" \
+    -D cpp_args="$CPPFLAGS" \
+    -D cpp_link_args="$LDFLAGS" \
     -D vulkan=enabled \
     -D glslang=enabled \
     -D shaderc=enabled \
     -D lcms=enabled \
     -D d3d11=disabled \
     -D libdovi=enabled \
+    -D tests=false \
     -D demos=false
-  ninja -C build
+  ninja -C "${srcdir}/build"
 }
 
 package() {
-  depends+=(
-    'libdovi.so'
-    'liblcms2.so'
-    'libshaderc_shared.so'
-    'libvulkan.so'
-  )
-
-  cd ${pkgname}
-  DESTDIR="$pkgdir" ninja install -C build
+  cd "${pkgname}"
+  DESTDIR="$pkgdir" ninja install -C "${srcdir}/build"
 }
