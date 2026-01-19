@@ -9,8 +9,8 @@ conflicts=($provides)
 url="https://play0ad.com"
 license=('GPL2' 'MIT')
 depends=('awk' 'boost' 'boost-libs' 'cmake' 'curl' 'enet' 'fmt' 'gloox' 'grep' 'icu' 'libgl' 'libogg' 'libpng' 'libsodium' 'libvorbis' 'libxml2' 'llvm' 'm4' 'make' 'miniupnpc' 'openal' 'openexr' 'patch' 'pkg-config' 'python' 'rust' 'sdl2' 'subversion' 'wxwidgets-gtk3' 'zip' 'zlib')
-makedepends=('git' 'pkg-config' 'make')
-# Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your /etc/makepkg.conf
+makedepends=('git' 'git-lfs' 'pkg-config' 'make')
+# Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your DLAGENTS in "/etc/makepkg.conf"
 source=("git-lfs+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "gmake-clang")
 sha256sums=('SKIP' 'SKIP' 'SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
