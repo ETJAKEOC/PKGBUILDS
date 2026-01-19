@@ -48,6 +48,10 @@ build() {
   cd gcc
   "$srcdir/gmake-clang"
   rm "$srcdir/0ad/binaries/system/libmozjs128-debug.so"
+
+  # Create 0AD data
+  cd "$srcdir/0ad"
+  source/tools/dist/build-archives.sh
 }
 
 package() {
@@ -55,7 +59,8 @@ package() {
 
   # Create package dirs
   install -d "$pkgdir/usr/lib/0ad"
-  install -d "$pkgdir/usr/share/0ad/data/mods"
+  install -d "$pkgdir/usr/share/0ad/data/mods/mod"
+  install -d "$pkgdir/usr/share/0ad/data/mods/public"
 
   # Install 0AD
   install -Dm755 binaries/system/pyrogenesis "$pkgdir/usr/bin/0ad"
@@ -64,5 +69,7 @@ package() {
   install -Dm644 build/resources/0ad.png "$pkgdir/usr/share/pixmaps/0ad.png"
 
   # Install 0AD-data
-  cp -a binaries/data/* "$pkgdir/usr/share/0ad/data/"
+  cp archives/mod/mod.zip "$pkgdir/usr/share/0ad/data/mods/mod/"
+  cp archives/public/mod.json "$pkgdir/usr/share/0ad/data/mods/public/"
+  cp archives/public/public.zip "$pkgdir/usr/share/0ad/data/mods/public/"
 }
