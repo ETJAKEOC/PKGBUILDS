@@ -64,6 +64,5 @@ package() {
   install -Dm644 build/resources/0ad.png "$pkgdir/usr/share/pixmaps/0ad.png"
 
   # Install 0AD-data
-  cp -a binaries/data/mods/mod "$pkgdir/usr/share/0ad/data/mods/"
-  cp -a binaries/data/mods/public "$pkgdir/usr/share/0ad/data/mods/"
+  cp -a binaries/data/* "$pkgdir/usr/share/0ad/data/"
 }
