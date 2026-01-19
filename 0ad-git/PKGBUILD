@@ -42,7 +42,9 @@ build() {
 
   cd "$srcdir/0ad"
   source/tools/dist/build-archives.sh
-  unzip -o archives/mod/mod.zip -d binaries/data/mods
+  rm -rf binaries/data
+  mkdir -p binaries/data/mods
+  unzip -o archives/mod/mod.zip -d binaries/data/mods/mod
   unzip -o archives/public/public.zip -d binaries/data/mods/public
 }
 
@@ -50,11 +52,15 @@ package() {
   cd "$srcdir/0ad"
   install -d "$pkgdir/usr/lib/0ad"
   install -d "$pkgdir/usr/share/0ad/data"
+
   install -Dm755 binaries/system/pyrogenesis "$pkgdir/usr/bin/0ad"
   install -Dm755 binaries/system/*.so "$pkgdir/usr/lib/0ad/"
   install -Dm644 build/resources/0ad.desktop "$pkgdir/usr/share/applications/0ad.desktop"
   install -Dm644 build/resources/0ad.png "$pkgdir/usr/share/pixmaps/0ad.png"
+
   cp -a binaries/data/* "$pkgdir/usr/share/0ad/data/"
+
   patchelf --set-rpath '$ORIGIN/../lib/0ad' "$pkgdir/usr/bin/0ad"
+
   llvm-strip --strip-unneeded "$pkgdir/usr/lib/0ad/"*.so
 }
