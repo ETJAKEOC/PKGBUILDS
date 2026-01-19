@@ -10,57 +10,60 @@ url="https://play0ad.com"
 license=('GPL2' 'MIT')
 depends=('awk' 'boost' 'boost-libs' 'cmake' 'curl' 'enet' 'fmt' 'gloox' 'grep' 'icu' 'libgl' 'libogg' 'libpng' 'libsodium' 'libvorbis' 'libxml2' 'llvm' 'm4' 'make' 'miniupnpc' 'openal' 'openexr' 'patch' 'pkg-config' 'python' 'rust' 'sdl2' 'subversion' 'wxwidgets-gtk3' 'zip' 'zlib')
 makedepends=('git' 'pkg-config' 'make')
-source=("git+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "gmake-clang")
+# Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your /etc/makepkg.conf
+source=("git-lfs+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "gmake-clang")
 sha256sums=('SKIP' 'SKIP' 'SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
 prepare() {
   cd "$srcdir/0ad"
-  git lfs install --local
-  git lfs pull
+
+  # Update submodules
   git submodule update --init --recursive
+
+  # Patch launcher to inlcude gamemoderun/mangohud if installed
   patch -p1 < "$srcdir/gamemoderun_mangohud.patch"
+
+  # Replace gmake with our clang'd version
   chmod +x "$srcdir/gmake-clang"
   sed -i 's|^GMAKE=.*|GMAKE="'"$srcdir"'/gmake-clang"|' build/workspaces/update-workspaces.sh
 }
 
 build() {
+  # Make the env happy
   export PATH="$srcdir:$PATH"
   export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
   export CMAKE_POLICY_VERSION_MINIMUM=3.5
 
+  # Build the source libraries
   cd "$srcdir/0ad/libraries"
   ./build-source-libs.sh --with-system-premake --with-spirv-reflect -j$(nproc)
 
+  # Build the workspace
   cd ../build/workspaces
   ./update-workspaces.sh --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data -j$(nproc) \
   --with-system-premake5 --with-lto --without-pch
 
+  # Compile 0AD (and remove the debug library)
   cd gcc
   "$srcdir/gmake-clang"
   rm "$srcdir/0ad/binaries/system/libmozjs128-debug.so"
-
-  cd "$srcdir/0ad"
-  source/tools/dist/build-archives.sh
-  rm -rf binaries/data
-  mkdir -p binaries/data/mods
-  unzip -o archives/mod/mod.zip -d binaries/data/mods/mod
-  unzip -o archives/public/public.zip -d binaries/data/mods/public
 }
 
 package() {
   cd "$srcdir/0ad"
-  install -d "$pkgdir/usr/lib/0ad"
-  install -d "$pkgdir/usr/share/0ad/data"
 
+  # Create package dirs
+  install -d "$pkgdir/usr/lib/0ad"
+  install -d "$pkgdir/usr/share/0ad/data/mods"
+
+  # Install 0AD
   install -Dm755 binaries/system/pyrogenesis "$pkgdir/usr/bin/0ad"
   install -Dm755 binaries/system/*.so "$pkgdir/usr/lib/0ad/"
   install -Dm644 build/resources/0ad.desktop "$pkgdir/usr/share/applications/0ad.desktop"
   install -Dm644 build/resources/0ad.png "$pkgdir/usr/share/pixmaps/0ad.png"
 
-  cp -a binaries/data/* "$pkgdir/usr/share/0ad/data/"
-
-  patchelf --set-rpath '$ORIGIN/../lib/0ad' "$pkgdir/usr/bin/0ad"
-
-  llvm-strip --strip-unneeded "$pkgdir/usr/lib/0ad/"*.so
+  # Install 0AD-data
+  cp -a binaries/data/mods/mod "$pkgdir/usr/share/0ad/data/mods/"
+  cp -a binaries/data/mods/public "$pkgdir/usr/share/0ad/data/mods/"
 }
