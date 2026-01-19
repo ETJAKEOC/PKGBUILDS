@@ -1,5 +1,5 @@
 pkgname=pacman-ETJAKEOC
-pkgver=7.1.0.r10.gbdedf62
+pkgver=7.1.0.r17.g2979f35
 pkgrel=1
 pkgdesc="A library-based package manager with dependency support - with proper support, no Rust ever!"
 arch=('x86_64')
@@ -24,12 +24,27 @@ pkgver() {
 build() {
   cd "$srcdir/pacman"
 
-  arch-meson \
+meson "$@" \
         --buildtype=plain \
-        -Ddoc=disabled \
-        -Ddoxygen=disabled \
-        -Dscriptlet-shell=/usr/bin/bash \
-        -Dldconfig=/usr/bin/ldconfig \
+	--reconfigure \
+	--optimization  3 \
+	--auto-features enabled \
+	-D prefix=/usr \
+	-D libdir=lib \
+	-D b_pie=true \
+	-D b_staticpic=true \
+	-D b_lto=true \
+	-D python.bytecompile=2 \
+	-D backend=ninja \
+	-D b_colorout=always \
+	-D c_args="$CFLAGS" \
+	-D c_link_args="$LDFLAGS" \
+	-D cpp_args="$CPPFLAGS" \
+	-D cpp_link_args="$LDFLAGS"
+        -D doc=disabled \
+        -D doxygen=disabled \
+        -D scriptlet-shell=/usr/bin/bash \
+        -D ldconfig=/usr/bin/ldconfig \
         build
 
   ninja -C build

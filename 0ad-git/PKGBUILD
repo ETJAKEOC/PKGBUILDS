@@ -1,61 +1,60 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
-pkgname=0ad-git
-pkgver=a26.2125.r067a7abc72
-pkgrel=1
-pkgdesc="Real-time strategy game of ancient warfare (development version)"
 arch=('x86_64')
+pkgname=0ad-git
+pkgdesc="Real-time strategy game of ancient warfare (development version)"
+pkgver=0.28.0
+pkgrel=1
+provides=('0ad' '0ad-data' '0ad-git' '0ad-data-git')
+conflicts=($provides)
 url="https://play0ad.com"
 license=('GPL2' 'MIT')
-depends=('awk' 'boost' 'boost-libs' 'cmake' 'curl' 'enet' 'fmt' 'gcc' 'gloox' 'grep' 'icu' 'libgl' 'libogg' 'libpng' 'libsodium' 'libvorbis' 'libxml2' 'llvm' 'm4' 'make' 'miniupnpc' 'openal' 'openexr' 'patch' 'pkg-config' 'python' 'rust' 'sdl2' 'subversion' 'wxwidgets-gtk3' 'zip' 'zlib')
+depends=('awk' 'boost' 'boost-libs' 'cmake' 'curl' 'enet' 'fmt' 'gloox' 'grep' 'icu' 'libgl' 'libogg' 'libpng' 'libsodium' 'libvorbis' 'libxml2' 'llvm' 'm4' 'make' 'miniupnpc' 'openal' 'openexr' 'patch' 'pkg-config' 'python' 'rust' 'sdl2' 'subversion' 'wxwidgets-gtk3' 'zip' 'zlib')
 makedepends=('git' 'pkg-config' 'make')
-provides=('0ad' '0ad-data')
-conflicts=('0ad' '0ad-data')
-options=('!ccache' 'buildflags' 'lto' 'makeflags' 'strip')
-source=("git+https://gitea.wildfiregames.com/0ad/0ad.git")
-sha256sums=('SKIP')
-
-pkgver() {
-  cd "$srcdir/0ad"
-  git describe --tags --long --dirty | sed 's/^A//' | sed 's/-/./g' | sed 's/\.g/\.r/'
-}
+source=("git+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "gmake-clang")
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
 prepare() {
   cd "$srcdir/0ad"
+  git lfs install --local
+  git lfs pull
   git submodule update --init --recursive
+  patch -p1 < "$srcdir/gamemoderun_mangohud.patch"
+  chmod +x "$srcdir/gmake-clang"
+  sed -i 's|^GMAKE=.*|GMAKE="'"$srcdir"'/gmake-clang"|' build/workspaces/update-workspaces.sh
 }
 
 build() {
-  cd "$srcdir/0ad/libraries"
+  export PATH="$srcdir:$PATH"
+  export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
   export CMAKE_POLICY_VERSION_MINIMUM=3.5
-  ./build-source-libs.sh
+
+  cd "$srcdir/0ad/libraries"
+  ./build-source-libs.sh --with-system-premake --with-spirv-reflect -j$(nproc)
 
   cd ../build/workspaces
-  ./update-workspaces.sh -j$(nproc) --with-lto \
-  --without-pch --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data
+  ./update-workspaces.sh --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data -j$(nproc) \
+  --with-system-premake5 --with-lto --without-pch
 
   cd gcc
-  LLVM=1 LLVM_IAS=1 make -j$(nproc)
+  "$srcdir/gmake-clang"
+  rm "$srcdir/0ad/binaries/system/libmozjs128-debug.so"
+
+  cd "$srcdir/0ad"
+  source/tools/dist/build-archives.sh
+  unzip -o archives/mod/mod.zip -d binaries/data/mods
+  unzip -o archives/public/public.zip -d binaries/data/mods/public
 }
 
 package() {
   cd "$srcdir/0ad"
-
-  # Binary
-  install -Dm755 binaries/system/pyrogenesis \
-    "$pkgdir/usr/bin/0ad"
-
-  # Data files
-  install -d "$pkgdir/usr/share/0ad"
-  cp -r binaries/data/* "$pkgdir/usr/share/0ad/"
-
-  # Desktop entry & icon (if present)
-  if [[ -f build/resources/0ad.desktop ]]; then
-    install -Dm644 build/resources/0ad.desktop \
-      "$pkgdir/usr/share/applications/0ad.desktop"
-  fi
-
-  if [[ -f build/resources/0ad.png ]]; then
-    install -Dm644 build/resources/0ad.png \
-      "$pkgdir/usr/share/pixmaps/0ad.png"
-  fi
+  install -d "$pkgdir/usr/lib/0ad"
+  install -d "$pkgdir/usr/share/0ad/data"
+  install -Dm755 binaries/system/pyrogenesis "$pkgdir/usr/bin/0ad"
+  install -Dm755 binaries/system/*.so "$pkgdir/usr/lib/0ad/"
+  install -Dm644 build/resources/0ad.desktop "$pkgdir/usr/share/applications/0ad.desktop"
+  install -Dm644 build/resources/0ad.png "$pkgdir/usr/share/pixmaps/0ad.png"
+  cp -a binaries/data/* "$pkgdir/usr/share/0ad/data/"
+  patchelf --set-rpath '$ORIGIN/../lib/0ad' "$pkgdir/usr/bin/0ad"
+  llvm-strip --strip-unneeded "$pkgdir/usr/lib/0ad/"*.so
 }

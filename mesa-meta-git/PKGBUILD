@@ -78,6 +78,7 @@ build () {
   export OBJDUMP=/usr/bin/llvm-objdump
   export READELF=/usr/bin/llvm-readelf
   export RANLIB=/usr/bin/llvm-ranlib
+  export LLVM_VERSION=23
 
 local _meson_flags=(
   # Core Meson / Build System Setup

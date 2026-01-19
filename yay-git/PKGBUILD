@@ -1,7 +1,7 @@
 pkgname="yay-git-ETJAKEOC"
 _pkgname="yay"
-pkgver=12.5.1.r0.g60b7f639
-pkgrel=2
+pkgver=12.5.7.r20.gab19522e
+pkgrel=1
 pkgdesc="Yet another yogurt. Pacman wrapper and AUR helper written in go. (development version)"
 arch=('x86_64')
 url="https://github.com/Jguer/yay"
@@ -12,6 +12,7 @@ conflicts=('yay')
 provides=('yay')
 source=("yay::git+https://github.com/Jguer/yay.git")
 sha256sums=("SKIP")
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
 pkgver() {
   cd "$srcdir/$_pkgname"
@@ -20,13 +21,13 @@ pkgver() {
 
 build() {
   export CGO_CPPFLAGS="${CPPFLAGS}"
-  export CGO_CFLAGS="$(echo "$CFLAGS" | sed 's/-fwhole-program-vtables//g')"
-  export CGO_CXXFLAGS="$(echo "$CXXFLAGS" | sed 's/-fwhole-program-vtables//g')"
+  export CGO_CFLAGS="${CFLAGS}"
+  export CGO_CXXFLAGS="${CXXFLAGS}"
   export CGO_LDFLAGS="${LDFLAGS}"
   export CGO_ENABLED=1
 
   cd "$srcdir/$_pkgname"
-  LLVM=1 LLVM_IAS=1 make VERSION=$pkgver DESTDIR="$pkgdir" PREFIX="/usr" build
+  make VERSION=$pkgver DESTDIR="$pkgdir" PREFIX="/usr" build
 }
 
 package() {

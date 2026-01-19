@@ -1,23 +1,24 @@
 pkgname=linux-api-headers
 pkgver=6.18
-rc=rc4
+#rc=-rc4
 pkgrel=1
 pkgdesc='Kernel headers sanitized for use in userspace'
 arch=('x86_64')
-url='https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/'
+url='https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot'
 license=(GPL-2.0-only)
 makedepends=(rsync)
-source=(${url}/linux-${pkgver}-${rc}.tar.gz)
+source=(${url}/linux-${pkgver}.tar.gz)
+#source=(${url}/linux-${pkgver}${rc}.tar.gz)
 sha256sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
 build() {
-  cd linux-${pkgver}-${rc}
-  source /etc/environment
-  CC=clang CPP=clang-cpp CXX=clang++ LD=ld.lld CC_LD=ld.lld CXX_LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=ld.lld make -j20 LLVM=1 LLVM_IAS=1 mrproper
+  cd linux-${pkgver}
+  make -j20 mrproper
 }
 
 package() {
-  cd linux-${pkgver}-${rc}
-  CC=clang CPP=clang-cpp CXX=clang++ LD=ld.lld CC_LD=ld.lld CXX_LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=ld.lld make -j20 LLVM=1 LLVM_IAS=1 INSTALL_HDR_PATH="${pkgdir}/usr" headers_install
+  cd linux-${pkgver}
+  make -j20 INSTALL_HDR_PATH="${pkgdir}/usr" headers_install
   rm -r "${pkgdir}/usr/include/drm"
 }

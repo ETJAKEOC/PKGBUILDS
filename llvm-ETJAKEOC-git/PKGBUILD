@@ -3,7 +3,7 @@ pkgdesc="Meta LLVM/Clang stack: Clang, libc++, libc++abi, libunwind, lld, compil
 url="https://llvm.org/"
 license=('Apache-2.0 WITH LLVM-exception')
 arch=('x86_64')
-pkgver=23.r469
+pkgver=23.r533
 pkgrel=1
 pkgname=('llvm-ETJAKEOC')
 makedepends=('git' 'cmake' 'ninja' 'python' 'python-setuptools' 'libffi' 'libedit' 'ncurses' 'libxml2' 'opencl-headers' 'z3' 'zstd')
@@ -75,7 +75,7 @@ _cmake_flags=(
   -DLIBCLC_TARGETS_TO_BUILD="amdgcn-mesa-mesa3d;clspv--"
   -DLLVM_ENABLE_PROJECTS="bolt;clang;clang-tools-extra;lld;llvm"
   -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt;libclc"
-  -DLLVM_TARGETS_TO_BUILD="X86;AMDGPU;SPIRV;AArch64;WebAssembly"
+  -DLLVM_TARGETS_TO_BUILD="X86;AMDGPU;SPIRV;AArch64;ARM;WebAssembly"
   -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=DirectX
   -DLLVM_OPTIMIZED_TABLEGEN=ON
   -DLLVM_PARALLEL_LINK_JOBS=4
@@ -83,6 +83,7 @@ _cmake_flags=(
   -DCLANG_LINK_CLANG_DYLIB=ON
   -DLLVM_CCACHE_BUILD=ON
   -DLLVM_ENABLE_RTTI=ON
+  -DLLVM_ENABLE_RPATH=ON
   -DLLVM_ENABLE_EH=ON
   -DLLVM_ENABLE_FFI=ON
   -DLLVM_ENABLE_PIC=ON
@@ -94,7 +95,9 @@ _cmake_flags=(
   -DLLVM_INSTALL_CCTOOLS_SYMLINKS=ON
   -DLLVM_INSTALL_UTILS=ON
   -DLLVM_LINK_LLVM_DYLIB=ON
-  -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON
+  -DLLVM_USE_HOST_TOOLS=ON
+  -DCOMPILER_RT_DEFAULT_TARGET_ONLY=OFF
+  -DCOMPILER_RT_SKIP_RUNTIME_CHECKS=ON
   -DCOMPILER_RT_BUILD_BUILTINS=ON
   -DCOMPILER_RT_BUILD_SANITIZERS=ON
   -DCOMPILER_RT_BUILD_PROFILE=ON
@@ -123,6 +126,7 @@ _cmake_flags=(
 )
 
 build() {
+  export LD_LIBRARY_PATH="$srcdir/_build/lib"
   ulimit -s unlimited
   cmake -B "$srcdir/_build" -S "$srcdir/llvm-project/llvm" "${_cmake_flags[@]}"
   ninja -C "$srcdir/_build"

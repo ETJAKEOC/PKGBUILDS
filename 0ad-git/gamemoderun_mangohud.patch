@@ -1,0 +1,27 @@
+--- a/build/resources/0ad.sh	2026-01-18 23:38:28.693460280 -0500
++++ b/build/resources/0ad.sh	2026-01-18 23:36:32.725715459 -0500
+@@ -1,9 +1,20 @@
+ #!/bin/sh
+ 
+-pyrogenesis=$(which pyrogenesis 2>/dev/null)
++gamemoderun=$(command -v gamemoderun 2>/dev/null)
++mangohud=$(command -v mangohud 2>/dev/null)
++pyrogenesis=$(command -v pyrogenesis 2>/dev/null)
++
+ if [ -x "$pyrogenesis" ]; then
+-	"$pyrogenesis" "$@"
++    if [ -x "$gamemoderun" ] && [ -x "$mangohud" ]; then
++        "$gamemoderun" "$mangohud" "$pyrogenesis" "$@"
++    elif [ -x "$gamemoderun" ]; then
++        "$gamemoderun" "$pyrogenesis" "$@"
++    elif [ -x "$mangohud" ]; then
++        "$mangohud" "$pyrogenesis" "$@"
++    else
++        "$pyrogenesis" "$@"
++    fi
+ else
+-	echo "Error: pyrogenesis not found in ($PATH)"
+-	exit 1
++    echo "Error: pyrogenesis not found in ($PATH)"
++    exit 1
+ fi
