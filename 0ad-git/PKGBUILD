@@ -24,6 +24,7 @@ _env() {
   export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
   export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
   export LDFLAGS="-fuse-ld=lld -O3 -Wl,--icf=safe"
+  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C force-frame-pointers=yes -C linker=clang -C link-arg=-fuse-ld=lld -C panic=abort -C debuginfo=0 -C strip=debuginfo"
   export CC=clang
   export CPP=clang-cpp
   export CXX=clang++
