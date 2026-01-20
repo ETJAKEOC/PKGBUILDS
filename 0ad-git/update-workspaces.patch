@@ -1,0 +1,11 @@
+--- a/build/workspaces/update-workspaces.sh	2026-01-20 12:18:17.375035147 -0500
++++ b/build/workspaces/update-workspaces.sh	2026-01-20 12:19:21.462980269 -0500
+@@ -12,7 +12,7 @@
+ # Now in build/workspaces/ (where we assume this script resides)
+ 
+ # Parse command-line options:
+-premake_args=""
++premake_args="--arch=x86_64 --os=linux --shell=posix --cc=clang"
+ 
+ with_system_premake5=false
+ 

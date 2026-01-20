@@ -9,44 +9,61 @@ conflicts=($provides)
 url="https://play0ad.com"
 license=('GPL2' 'MIT')
 depends=('awk' 'boost' 'boost-libs' 'cmake' 'curl' 'enet' 'fmt' 'gloox' 'grep' 'icu' 'libgl' 'libogg' 'libpng' 'libsodium' 'libvorbis' 'libxml2' 'llvm' 'm4' 'make' 'miniupnpc' 'openal' 'openexr' 'patch' 'pkg-config' 'python' 'rust' 'sdl2' 'subversion' 'wxwidgets-gtk3' 'zip' 'zlib')
-makedepends=('git' 'git-lfs' 'pkg-config' 'make')
+makedepends=('git' 'git-lfs' 'pkg-config' 'make' 'clang' 'llvm' 'lld')
 # Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your DLAGENTS in "/etc/makepkg.conf"
-source=("git-lfs+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "gmake-clang")
+source=("git-lfs+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "update-workspaces.patch")
 sha256sums=('SKIP' 'SKIP' 'SKIP')
-options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
+options=('!buildflags' '!debug' '!docs' '!emptydirs' '!lto' '!makeflags' '!staticlibs' 'ccache' 'strip')
+
+# Set up our environment to utilize clang
+_env() {
+  export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
+  export CMAKE_POLICY_VERSION_MINIMUM=3.5
+  export LD_LIBRARY_PATH="$srcdir/0ad/binaries/system:$LD_LIBRARY_PATH"
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+  export LDFLAGS="-fuse-ld=lld -O3 -Wl,--icf=safe"
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+}
 
 prepare() {
+  _env
   cd "$srcdir/0ad"
-
-  # Update submodules
-  git submodule update --init --recursive
 
   # Patch launcher to inlcude gamemoderun/mangohud if installed
   patch -p1 < "$srcdir/gamemoderun_mangohud.patch"
 
-  # Replace gmake with our clang'd version
-  chmod +x "$srcdir/gmake-clang"
-  sed -i 's|^GMAKE=.*|GMAKE="'"$srcdir"'/gmake-clang"|' build/workspaces/update-workspaces.sh
+  # Update update-workspaces.sh to force clang usage
+  patch -p1 < "$srcdir/update-workspaces.patch"
 }
 
 build() {
-  # Make the env happy
-  export PATH="$srcdir:$PATH"
-  export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
-  export CMAKE_POLICY_VERSION_MINIMUM=3.5
+  _env
 
   # Build the source libraries
   cd "$srcdir/0ad/libraries"
-  ./build-source-libs.sh --with-system-premake --with-spirv-reflect -j$(nproc)
+  ./build-source-libs.sh --with-spirv-reflect -j$(nproc)
 
   # Build the workspace
   cd ../build/workspaces
-  ./update-workspaces.sh --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data -j$(nproc) \
-  --with-system-premake5 --with-lto --without-pch
+  ./update-workspaces.sh --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data -j$(nproc) --without-pch
 
   # Compile 0AD (and remove the debug library)
   cd gcc
-  "$srcdir/gmake-clang"
+  LLVM=1 LLVM_IAS=1 make -j$(nproc)
   rm "$srcdir/0ad/binaries/system/libmozjs128-debug.so"
 
   # Create 0AD data
@@ -58,18 +75,15 @@ package() {
   cd "$srcdir/0ad"
 
   # Create package dirs
-  install -d "$pkgdir/usr/lib/0ad"
-  install -d "$pkgdir/usr/share/0ad/data/mods/mod"
-  install -d "$pkgdir/usr/share/0ad/data/mods/public"
+  install -d "$pkgdir"/usr/{bin,lib/0ad,share/{applications,pixmaps,0ad/data/mods/{mod,public}}}
 
   # Install 0AD
-  install -Dm755 binaries/system/pyrogenesis "$pkgdir/usr/bin/0ad"
+  install -Dm755 binaries/system/pyrogenesis "$pkgdir/usr/bin"
   install -Dm755 binaries/system/*.so "$pkgdir/usr/lib/0ad/"
+  install -Dm755 build/resources/0ad.sh "$pkgdir/usr/bin/0ad"
   install -Dm644 build/resources/0ad.desktop "$pkgdir/usr/share/applications/0ad.desktop"
   install -Dm644 build/resources/0ad.png "$pkgdir/usr/share/pixmaps/0ad.png"
-
-  # Install 0AD-data
-  cp archives/mod/mod.zip "$pkgdir/usr/share/0ad/data/mods/mod/"
-  cp archives/public/mod.json "$pkgdir/usr/share/0ad/data/mods/public/"
-  cp archives/public/public.zip "$pkgdir/usr/share/0ad/data/mods/public/"
+  cp -r binaries/data/{config,l10n} "$pkgdir/usr/share/0ad/data"
+  cp -r archives/mod "$pkgdir/usr/share/0ad/data/mods"
+  cp -r archives/public "$pkgdir/usr/share/0ad/data/mods"
 }
