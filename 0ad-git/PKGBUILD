@@ -16,32 +16,29 @@ sha256sums=('SKIP' 'SKIP' 'SKIP')
 options=('!buildflags' '!debug' '!docs' '!emptydirs' '!lto' '!makeflags' '!staticlibs' 'ccache' 'strip')
 
 # Set up our environment to utilize clang
-_env() {
-  export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
-  export CMAKE_POLICY_VERSION_MINIMUM=3.5
-  export LD_LIBRARY_PATH="$srcdir/0ad/binaries/system:$LD_LIBRARY_PATH"
-  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
-  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
-  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
-  export LDFLAGS="-fuse-ld=lld -O3 -Wl,--icf=safe"
-  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C force-frame-pointers=yes -C linker=clang -C link-arg=-fuse-ld=lld -C panic=abort -C debuginfo=0 -C strip=debuginfo"
-  export CC=clang
-  export CPP=clang-cpp
-  export CXX=clang++
-  export LD=lld
-  export CC_LD=lld
-  export CXX_LD=lld
-  export AR=llvm-ar
-  export NM=llvm-nm
-  export STRIP=llvm-strip
-  export OBJCOPY=llvm-objcopy
-  export OBJDUMP=llvm-objdump
-  export READELF=llvm-readelf
-  export RANLIB=llvm-ranlib
-}
+export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
+export LD_LIBRARY_PATH="$srcdir/0ad/binaries/system:$LD_LIBRARY_PATH"
+export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+export LDFLAGS="-fuse-ld=lld -O3"
+export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C force-frame-pointers=yes -C linker=clang -C link-arg=-fuse-ld=lld -C panic=abort -C debuginfo=0 -C strip=debuginfo"
+export CC=clang
+export CPP=clang-cpp
+export CXX=clang++
+export LD=lld
+export CC_LD=lld
+export CXX_LD=lld
+export AR=llvm-ar
+export NM=llvm-nm
+export STRIP=llvm-strip
+export OBJCOPY=llvm-objcopy
+export OBJDUMP=llvm-objdump
+export READELF=llvm-readelf
+export RANLIB=llvm-ranlib
 
 prepare() {
-  _env
   cd "$srcdir/0ad"
 
   # Patch launcher to inlcude gamemoderun/mangohud if installed
@@ -52,8 +49,6 @@ prepare() {
 }
 
 build() {
-  _env
-
   # Build the source libraries
   cd "$srcdir/0ad/libraries"
   ./build-source-libs.sh --with-spirv-reflect -j$(nproc)
