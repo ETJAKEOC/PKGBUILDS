@@ -10,7 +10,8 @@ provides=('vulkan-mesa-layers' 'opencl-driver' 'opengl-driver' 'vulkan-driver' '
 conflicts=($provides)
 url="https://www.mesa3d.org"
 license=('custom')
-source=('mesa::git+https://gitlab.freedesktop.org/mesa/mesa.git')
+# Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your DLAGENTS in "/etc/makepkg.conf"
+source=('mesa::git-lfs+https://gitlab.freedesktop.org/mesa/mesa.git')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
 
@@ -143,7 +144,7 @@ local _meson_flags=(
   -D tools=[]
 )
 
-    meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=true -D draw-use-llvm=true -D b_lto=true -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream \
+    meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=true -D draw-use-llvm=true -D b_lto=false -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream \
         -D c_args="$CFLAGS" -D c_link_args="$LDFLAGS" -D cpp_args="$CPPFLAGS" -D cpp_link_args="$LDFLAGS"
     ninja -j$(nproc) -C build
 

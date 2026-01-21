@@ -1,7 +1,7 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 arch=('x86_64')
 pkgname=0ad-git
-pkgdesc="Real-time strategy game of ancient warfare (development version)"
+pkgdesc="Real-time strategy game of ancient warfare (development version - clang build)"
 pkgver=0.28.0
 pkgrel=1
 provides=('0ad' '0ad-data' '0ad-git' '0ad-data-git')
@@ -9,71 +9,73 @@ conflicts=($provides)
 url="https://play0ad.com"
 license=('GPL2' 'MIT')
 depends=('awk' 'boost' 'boost-libs' 'cmake' 'curl' 'enet' 'fmt' 'gloox' 'grep' 'icu' 'libgl' 'libogg' 'libpng' 'libsodium' 'libvorbis' 'libxml2' 'llvm' 'm4' 'make' 'miniupnpc' 'openal' 'openexr' 'patch' 'pkg-config' 'python' 'rust' 'sdl2' 'subversion' 'wxwidgets-gtk3' 'zip' 'zlib')
-makedepends=('git' 'git-lfs' 'pkg-config' 'make' 'clang' 'llvm' 'lld')
+makedepends=('git' 'git-lfs' 'pkg-config' 'make' 'clang' 'llvm' 'lld' 'imagemagick')
 # Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your DLAGENTS in "/etc/makepkg.conf"
-source=("git-lfs+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "update-workspaces.patch")
-sha256sums=('SKIP' 'SKIP' 'SKIP')
+source=("git-lfs+https://gitea.wildfiregames.com/0ad/0ad.git#branch=release-$pkgver" "gamemoderun_mangohud.patch" "update-workspaces.patch" "mozconfig.patch")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 options=('!buildflags' '!debug' '!docs' '!emptydirs' '!lto' '!makeflags' '!staticlibs' 'ccache' 'strip')
-
-# Set up our environment to utilize clang
-export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
-export CMAKE_POLICY_VERSION_MINIMUM=3.5
-export LD_LIBRARY_PATH="$srcdir/0ad/binaries/system:$LD_LIBRARY_PATH"
-export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
-export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
-export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
-export LDFLAGS="-fuse-ld=lld -O3"
-export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C force-frame-pointers=yes -C linker=clang -C link-arg=-fuse-ld=lld -C panic=abort -C debuginfo=0 -C strip=debuginfo"
-export CC=clang
-export CPP=clang-cpp
-export CXX=clang++
-export LD=lld
-export CC_LD=lld
-export CXX_LD=lld
-export AR=llvm-ar
-export NM=llvm-nm
-export STRIP=llvm-strip
-export OBJCOPY=llvm-objcopy
-export OBJDUMP=llvm-objdump
-export READELF=llvm-readelf
-export RANLIB=llvm-ranlib
 
 prepare() {
   cd "$srcdir/0ad"
-
-  # Patch launcher to inlcude gamemoderun/mangohud if installed
-  patch -p1 < "$srcdir/gamemoderun_mangohud.patch"
-
-  # Update update-workspaces.sh to force clang usage
-  patch -p1 < "$srcdir/update-workspaces.patch"
+  msg2 "Patch launcher to inlcude gamemoderun/mangohud if installed"
+  patch -p1 <"$srcdir/gamemoderun_mangohud.patch"
+  msg2 "Update update-workspaces.sh to force clang usage"
+  patch -p1 <"$srcdir/update-workspaces.patch"
+  msg2 "Update mozconfig to work with clang"
+  patch -p1 <"$srcdir/mozconfig.patch"
 }
 
 build() {
-  # Build the source libraries
+  msg2 "Set up our environment"
+  export CARGO_BUILD_TARGET=x86_64-pc-linux-gnu
+  export CMAKE_POLICY_VERSION_MINIMUM=3.5
+  export LD_LIBRARY_PATH="$srcdir/0ad/binaries/system:$LD_LIBRARY_PATH"
+  export RUST_MIN_STACK=40960000
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -O2 -pipe"
+  export CFLAGS="-march=znver2 -mtune=znver2 -O2 -pipe"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -O2 -pipe"
+  export LDFLAGS="-fuse-ld=lld -O2"
+  export RUSTFLAGS="-C opt-level=2 -C target-cpu=znver2 -C linker=clang -C link-arg=-fuse-ld=lld"
+
+  msg2 "Build the source libraries"
   cd "$srcdir/0ad/libraries"
   ./build-source-libs.sh --with-spirv-reflect -j$(nproc)
 
-  # Build the workspace
-  cd ../build/workspaces
+  msg2 "Build the workspace"
+  cd "$srcdir/0ad//build/workspaces"
   ./update-workspaces.sh --bindir=/usr/bin --libdir=/usr/lib/0ad --datadir=/usr/share/0ad/data -j$(nproc) --without-pch
 
-  # Compile 0AD (and remove the debug library)
-  cd gcc
+  msg2 "Compile 0AD"
+  cd "$srcdir/0ad//build/workspaces/gcc"
   LLVM=1 LLVM_IAS=1 make -j$(nproc)
-  rm "$srcdir/0ad/binaries/system/libmozjs128-debug.so"
 
-  # Create 0AD data
+  #msg2 "Delete the debug library"
+  #rm "$srcdir/0ad/binaries/system/libmozjs128-debug.so"
+
   cd "$srcdir/0ad"
+  msg2 "Create 0AD data"
   source/tools/dist/build-archives.sh
 }
 
 package() {
   cd "$srcdir/0ad"
-
-  # Create package dirs
+  msg2 "Create package dirs"
   install -d "$pkgdir"/usr/{bin,lib/0ad,share/{applications,pixmaps,0ad/data/mods/{mod,public}}}
 
-  # Install 0AD
+  msg2 "Install 0AD"
   install -Dm755 binaries/system/pyrogenesis "$pkgdir/usr/bin"
   install -Dm755 binaries/system/*.so "$pkgdir/usr/lib/0ad/"
   install -Dm755 build/resources/0ad.sh "$pkgdir/usr/bin/0ad"

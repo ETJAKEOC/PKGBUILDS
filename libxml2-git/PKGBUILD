@@ -1,5 +1,5 @@
 pkgname=libxml2-git
-pkgver=2.14.4.r294.gad0f5d27
+pkgver=2.15.1.r45.g
 pkgrel=1
 pkgdesc="The XML C parser and toolkit of Gnome"
 arch=('i686' 'x86_64')
@@ -9,30 +9,34 @@ depends=('glibc' 'icu' 'sh' 'xz' 'zlib')
 makedepends=('git' 'python')
 provides=("libxml2=$pkgver" 'libxml2.so')
 conflicts=('libxml2')
-options=('staticlibs')
 source=("git+https://gitlab.gnome.org/GNOME/libxml2.git")
 sha256sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' 'ccache' 'buildflags' 'lto' 'makeflags' 'staticlibs' 'strip')
 
 pkgver() {
   cd "libxml2"
   _tag=$(git tag -l --sort -v:refname | sed '/rc[0-9]*/d' | head -n1)
   _rev=$(git rev-list --count $_tag..HEAD)
-  _hash=$(git rev-parse --short HEAD)
-  printf "%s.r%s.g%s" "$_tag" "$_rev" "$_hash" | sed 's/^v//'
+  printf "%s.r%s.g%s" "$_tag" "$_rev" | sed 's/^v//'
 }
 
 build() {
   cd "libxml2"
-#  NOCONFIGURE=1 ./autogen.sh
-#  ./configure --prefix="/usr" --enable-shared --with-history --with-icu CC="clang" \
-#  CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -flto -g0" \
-#  CPPFLAGS="-march=znver2 -mtune=znver2 -pipe" \
-#  LDFLAGS="-fuse-ld=lld -O3 -pthread"
-  make LLVM=1 LLVM_IAS=1 -j$(nproc)
+  NOCONFIGURE=1 ./autogen.sh
+  ./configure --prefix="/usr" --enable-shared --with-history --with-icu \
+  CC="$CC" CFLAGS="$CFLAGS" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS"
+
+  /usr/bin/meson setup build --reconfigure --optimization 3 \
+  -Ddocs=disabled --auto-features enabled -Dprefix=/usr -Dlibdir=lib -Db_pie=true -Db_staticpic=true -Db_lto=true \
+  -Dpython.bytecompile=2 -Dbackend=ninja -Db_colorout=always \
+  -Dc_args="-march=znver2 -mtune=znver2 -pipe -O3 -g0" \
+  -Dc_link_args="-fuse-ld=lld -O3 -Wl,--icf=safe" \
+  -Dcpp_args="-march=znver2 -mtune=znver2 -pipe -O3 -g0" \
+  -Dcpp_link_args="-fuse-ld=lld -O3 -Wl,--icf=safe"
+  ninja -C build
 }
 
 package() {
-  cd "libxml2"
-  make DESTDIR="$pkgdir" install
-  install -Dm644 "Copyright" -t "$pkgdir/usr/share/licenses/libxml2"
+  cd "libxml2/build"
+  DESTDIR="$pkgdir" ninja install
 }
