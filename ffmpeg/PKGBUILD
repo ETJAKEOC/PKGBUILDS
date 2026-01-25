@@ -1,129 +1,26 @@
 pkgname=ffmpeg
-pkgver=8.1.dev.630.g635cb4543f
+pkgver=8.1.dev
 pkgrel=1
-epoch=2
 pkgdesc='Complete solution to record, convert and stream audio and video'
 arch=(x86_64)
-url=https://ffmpeg.org
+url="https://ffmpeg.org"
 license=(GPL-3.0-only)
-depends=(
-  alsa-lib
-  aom
-  bzip2
-  cairo
-  dav1d
-  fontconfig
-  freetype2
-  fribidi
-  glib2
-  glibc
-  glslang
-  gmp
-  gnutls
-  gsm
-  harfbuzz
-  jack
-  lame
-  libass
-  libavc1394
-  libbluray
-  libbs2b
-  libdrm
-  libdvdnav
-  libdvdread
-  libgl
-  libiec61883
-  libjxl
-  libmodplug
-  libopenmpt
-  libplacebo
-  libpulse
-  libraw1394
-  librsvg
-  libsoxr
-  libssh
-  libtheora
-  libva
-  libvdpau
-  libvorbis
-  libvpx
-  libwebp
-  libx11
-  libxcb
-  libxext
-  libxml2
-  libxv
-  ocl-icd
-  onevpl
-  opencore-amr
-  openjpeg2
-  opus
-  rav1e
-  rubberband
-  sdl2
-  snappy
-  speex
-  srt
-  svt-av1
-  v4l-utils
-  vapoursynth
-  vid.stab
-  vmaf
-  vulkan-icd-loader
-  x264
-  x265
-  xvidcore
-  xz
-  zeromq
-  zimg
-  zlib
-)
-makedepends=(
-  amf-headers
-  avisynthplus
-  clang
-  ffnvcodec-headers
-  frei0r-plugins
-  git
-  ladspa
-  mesa
-  nasm
-  opencl-headers
-  vulkan-headers
-)
-optdepends=(
-  'avisynthplus: AviSynthPlus support'
-  'frei0r-plugins: Frei0r video effects support'
-  'intel-media-sdk: Intel QuickSync support (legacy)'
-  'ladspa: LADSPA filters'
-  'nvidia-utils: Nvidia NVDEC/NVENC support'
-  'onevpl-intel-gpu: Intel QuickSync support'
-)
-provides=(
-  libavcodec.so
-  libavdevice.so
-  libavfilter.so
-  libavformat.so
-  libavutil.so
-  libswresample.so
-  libswscale.so
-)
-source=(git+https://git.ffmpeg.org/ffmpeg.git)
+depends=(alsa-lib aom bzip2 cairo dav1d fontconfig freetype2 fribidi glib2 glibc glslang gmp gnutls gsm harfbuzz jack lame libass libavc1394 libbluray libbs2b libdrm libdvdnav libdvdread libgl libiec61883 libjxl libmodplug libopenmpt libplacebo libpulse libraw1394 librsvg libsoxr libssh libtheora libva libvdpau libvorbis libvpx libwebp libx11 libxcb libxext libxml2 libxv ocl-icd onevpl opencore-amr openjpeg2 opus rav1e rubberband sdl2 snappy speex srt svt-av1 v4l-utils vapoursynth vid.stab vmaf vulkan-icd-loader x264 x265 xvidcore xz zeromq zimg zlib)
+makedepends=(amf-headers avisynthplus clang ffnvcodec-headers frei0r-plugins git ladspa mesa nasm opencl-headers vulkan-headers)
+provides=(libavcodec.so libavdevice.so libavfilter.so libavformat.so libavutil.so libswresample.so libswscale.so)
+# Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your DLAGENTS in "/etc/makepkg.conf"
+source=(git-lfs+"https://git.ffmpeg.org/ffmpeg.git")
 b2sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!strip' 'ccache' 'buildflags' 'lto' 'makeflags')
 
 pkgver() {
-  cd ffmpeg
-  git describe --tags | sed 's/^n//' | sed 's/-/./g'
+  cd "${pkgname}"
+  git describe --tags --abbrev=0 | sed 's/^n//' | tr '-' '.'
 }
 
 build() {
-  export PKG_CONFIG_PATH='/usr/lib/mbedtls2/pkgconfig'
-  export CFLAGS="-march=znver2 -O3 -mtune=znver2"
-  export CXXFLAGS="$CFLAGS"
-  export LDFLAGS=""
-  export CC=clang
-  export CXX=clang++
-  cd ffmpeg
+  export PKG_CONFIG_PATH='/usr/lib/mbedtls2/pkgconfig:$PKG_CONFIG_PATH'
+  cd ${pkgname}
   ./configure \
     --prefix=/usr \
     --disable-debug \
@@ -192,45 +89,21 @@ build() {
     --disable-nvenc \
     --enable-opencl \
     --enable-opengl \
+    --enable-pic \
     --enable-shared \
     --enable-vapoursynth \
     --enable-version3 \
     --enable-vulkan \
-    --cc=clang \
-    --cxx=clang++
-  LLVM=1 LLVM_IAS=1 make
-  LLVM=1 LLVM_IAS=1 make tools/qt-faststart
-  LLVM=1 LLVM_IAS=1 make doc/ff{mpeg,play}.1
+    --cc="$CC" \
+    --cxx="$CXX"
+  make
+  make tools/qt-faststart
+  make doc/ff{mpeg,play}.1
 }
 
 package() {
-  depends+=(
-    libass.so
-    libbluray.so
-    libbs2b.so
-    libdav1d.so
-    libfreetype.so
-    libharfbuzz.so
-    libjxl.so
-    libopenmpt.so
-    libplacebo.so
-    librav1e.so
-    librsvg-2.so
-    librubberband.so
-    libva.so
-    libva-drm.so
-    libva-x11.so
-    libvidstab.so
-    libvorbisenc.so
-    libvorbis.so
-    libvpx.so
-    libx264.so
-    libx265.so
-    libxvidcore.so
-    libzimg.so
-    libzmq.so
-  )
+  depends+=(libass.so libbluray.so libbs2b.so libdav1d.so libfreetype.so libharfbuzz.so libjxl.so libopenmpt.so libplacebo.so librav1e.so librsvg-2.so librubberband.so libva.so libva-drm.so libva-x11.so libvidstab.so libvorbisenc.so libvorbis.so libvpx.so libx264.so libx265.so libxvidcore.so libzimg.so libzmq.so)
 
-  make DESTDIR="${pkgdir}" -C ffmpeg install install-man
-  install -Dm 755 ffmpeg/tools/qt-faststart "${pkgdir}"/usr/bin/
+  make DESTDIR="${pkgdir}" -C ${pkgname} install install-man
+  install -Dm 755 ${pkgname}/tools/qt-faststart "${pkgdir}"/usr/bin/
 }
