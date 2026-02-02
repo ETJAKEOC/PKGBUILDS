@@ -1,3 +1,3 @@
- #!/usr/bin/bash
+#!/usr/bin/bash
 
-exec /usr/bin/electron /opt/session-desktop/app.asar "$@"
+exec electron /usr/lib/session-desktop/app.asar "$@"

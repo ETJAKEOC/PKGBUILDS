@@ -1,6 +1,6 @@
 pkgname=libdrm-git
 _realname=libdrm
-pkgver=2.4.125.r2.g28917551
+pkgver=2.4.131.r1.g369990d9
 pkgrel=1
 pkgdesc="Userspace interface to kernel DRM services, master git version"
 arch=(i686 x86_64)
@@ -12,19 +12,49 @@ url="http://dri.freedesktop.org/"
 provides=('libdrm')
 conflicts=('libdrm')
 
-source=('git+https://gitlab.freedesktop.org/mesa/drm.git')
+source=('libdrm::git+https://gitlab.freedesktop.org/mesa/drm.git')
 sha512sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
 pkgver() {
-    cd drm
+    cd $_realname
     git describe --long --tags --abbrev=8 | sed 's/^libdrm-//;s/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
+prepare() {
+    if [ -d _build ]; then
+        rm -rf _build && mkdir _build
+    fi
+}
+
 build() {
-  arch-meson "$srcdir/build" "$srcdir/drm" --reconfigure --prefix /usr --wrap-mode nofallback -D udev=true
-  ninja -j4 -C "$srcdir/build"
+    export CC=/usr/bin/clang
+    export CXX=/usr/bin/clang++
+    export LD=lld
+
+    meson libdrm _build \
+        --reconfigure \
+        --optimization 3 \
+        --auto-features enabled \
+        -D prefix=/usr \
+        -D libdir=lib \
+        -D b_pie=true \
+        -D b_staticpic=true \
+        -D b_lto=true \
+        -D python.bytecompile=2 \
+        -D backend=ninja \
+        -D b_colorout=always \
+        -D c_args="$CFLAGS" \
+        -D c_link_args="$LDFLAGS" \
+        -D cpp_args="$CPPFLAGS" \
+        -D cpp_link_args="$LDFLAGS" \
+        --buildtype plain \
+        --wrap-mode nofallback \
+        -D udev=false \
+        -D valgrind=disabled
+    ninja -C _build
 }
 
 package() {
-  DESTDIR="$pkgdir" ninja -C build install
+    DESTDIR="$pkgdir" ninja -C _build install
 }
