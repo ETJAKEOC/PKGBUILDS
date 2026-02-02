@@ -1,6 +1,6 @@
 # toolchain build order: linux-api-headers->glibc->binutils->gcc->glibc->binutils->gcc
 pkgname=binutils
-pkgver=17+rbranchpoint+545+g59e09e8bcbe9
+pkgver=17+rbranchpoint+1818+g1b332804e187
 pkgrel=1
 pkgdesc='A set of programs to assemble and manipulate binary and object files'
 arch=(x86_64)
@@ -13,7 +13,7 @@ conflicts=(binutils-multilib)
 replaces=(binutils-multilib)
 provides=(libctf.so libgprofng.so libsframe.so)
 backup=('etc/gprofng.rc')
-options=(staticlibs !distcc !ccache)
+options=('!ccache' '!debug' '!docs' '!emptydirs' '!staticlibs' '!strip' '!buildflags' 'lto' '!makeflags')
 source=('git+https://sourceware.org/git/binutils-gdb.git' 'gold-warn-unsupported.patch')
 sha256sums=('SKIP' 'SKIP')
 
@@ -42,6 +42,7 @@ build() {
   export CPP=clang-cpp
   export CXX=clang++
   export LD=lld
+  export LLVM_CONFIG=llvm-config
   export CC_LD=lld
   export CXX_LD=lld
   export AR=llvm-ar
@@ -52,36 +53,46 @@ build() {
   export OBJDUMP=llvm-objdump
   export READELF=llvm-readelf
   export RANLIB=llvm-ranlib
-  export HOSTCC=clang
-  export HOSTCXX=clang++
-  export HOSTAR=llvm-ar
-  export HOSTLD=lld
 
-  export _COMMON_FLAGS="-march=znver2 -mtune=znver2 -O3 -g0 -I/usr/include"
+  export _COMMON_FLAGS="-march=znver2 -mtune=znver2 -O3 -g0 -pipe -fPIC -flto"
   export CPPFLAGS="$_COMMON_FLAGS"
   export CFLAGS="$_COMMON_FLAGS"
   export CXXFLAGS="$_COMMON_FLAGS"
-  export LDFLAGS="-fuse-ld=lld"
+  export LDFLAGS="-fuse-ld=lld -O3 -flto"
 
-  "${srcdir}"/binutils-gdb/configure \
+  cat > config.site << 'EOF'  
+lt_cv_prog_gnu_ld=yes  
+lt_cv_ld_shlibs=yes  
+EOF
+
+  CONFIG_SITE=./config.site "${srcdir}"/binutils-gdb/configure \
     --prefix=/usr \
     --sysconfdir=/etc \
     --with-lib-path=/usr/lib:/usr/local/lib \
     --with-bugurl=https://gitlab.archlinux.org/archlinux/packaging/packages/binutils/-/issues \
-    --enable-cet \
     --enable-colored-disassembly \
     --enable-default-execstack=no \
     --enable-deterministic-archives \
-    --enable-gold \
-    --enable-ld=default \
+    --enable-gold=yes \
+    --enable-ld=yes \
+    --enable-host-shared \
+    --enable-host-pie \
+    --enable-install-libbfd \
+    --enable-install-libsframe \
     --enable-install-libiberty \
     --enable-jansson \
+    --enable-lto \
+    --enable-libada \
+    --enable-libgm2 \
+    --enable-libssp \
+    --enable-objc-gc \
     --enable-new-dtags \
     --enable-plugins \
     --enable-relro \
     --enable-shared \
     --enable-targets=x86_64-pep,bpf-unknown-none \
     --enable-threads \
+    --disable-cet \
     --disable-doc \
     --disable-gdb \
     --disable-gdbserver \
@@ -90,25 +101,20 @@ build() {
     --disable-sim \
     --disable-werror \
     --with-debuginfod \
+    --with-gnu-ld \
     --with-pic \
-    --with-system-zlib
+    --with-system-zlib \
+    --with-zstd \
+    CC=clang CXX=clang++ CPP=clang-cpp AR=llvm-ar AS=llvm-as LD=lld NM=llvm-nm RANLIB=llvm-ranlib STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf \
+    CFLAGS="-march=znver2 -mtune=znver2 -O3 -g0 -pipe -fPIC -flto" \
+    CXXFLAGS="-march=znver2 -mtune=znver2 -O3 -g0 -pipe -fPIC -flto" \
+    CPPFLAGS="-march=znver2 -mtune=znver2 -O3 -g0 -pipe -fPIC -flto" \
+    LDFLAGS="-fuse-ld=lld -O3 -flto"
 
-  MAKEINFO=true LLVM=1 LLVM_IAS=1 make -j$(nproc) -O tooldir=/usr
+  MAKEINFO=true make -j$(nproc) -O tooldir=/usr
 }
 
 package() {
   cd "${srcdir}"/binutils-build
   make DESTDIR="${pkgdir}" install
-  tee "${pkgdir}"/usr/lib/libbfd.so << EOS
-/* GNU ld script */
-INPUT(libbfd.a -lsframe -lliberty -lz -lzstd -ldl)
-EOS
-  tee "${pkgdir}/usr/lib/libsframe.so" << EOF
-/* GNU ld script */
-INPUT( /usr/lib/libsframe.a )
-EOF
-  tee "${pkgdir}/usr/lib/libopcodes.so" << EOF
-/* GNU ld script */
-INPUT( /usr/lib/libopcodes.a -lbfd )
-EOF
 }
