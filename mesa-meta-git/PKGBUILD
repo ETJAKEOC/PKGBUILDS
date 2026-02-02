@@ -1,6 +1,6 @@
 pkgname=mesa-meta-git
 pkgdesc="an open-source implementation of the OpenGL specification, git version, both x86_64 and i386 in one metapackage"
-pkgver=26.0.0_devel.d41d8cd
+pkgver=26.1.0_devel.d41d8cd
 pkgrel=1
 arch=('x86_64')
 makedepends=('git' 'xorgproto' 'meson' 'libxml2' 'libvdpau' 'libva' 'elfutils' 'libxrandr' 'glslang' 'directx-headers-git' 'python-mako' 'python-ply' 'cbindgen' 'wayland-protocols' 'python-packaging' 'python-pyaml' 'lib32-glibc' 'lib32-libdrm' 'lib32-vulkan-icd-loader')
@@ -16,8 +16,8 @@ sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
 
 declare -A _crates=(
-   proc-macro2    1.0.105
-   quote          1.0.43
+   proc-macro2    1.0.106
+   quote          1.0.44
    syn            2.0.114
    unicode-ident  1.0.22
 )
@@ -89,6 +89,7 @@ local _meson_flags=(
   -D b_colorout=always
 
   # Build Optimization & Hardening
+  -D b_lto=false
   -D b_pie=true
   -D b_staticpic=true
   -D b_ndebug=true
@@ -144,11 +145,11 @@ local _meson_flags=(
   -D tools=[]
 )
 
-    meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=true -D draw-use-llvm=true -D b_lto=false -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream \
+    meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=false -D draw-use-llvm=true -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream \
         -D c_args="$CFLAGS" -D c_link_args="$LDFLAGS" -D cpp_args="$CPPFLAGS" -D cpp_link_args="$LDFLAGS"
     ninja -j$(nproc) -C build
 
-    meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D b_lto=false -D llvm=disabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream \
+    meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D llvm=disabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream \
         -D c_args="-m32 $CFLAGS" -D c_link_args="-m32 $LDFLAGS" -D cpp_args="-m32 $CPPFLAGS" -D  cpp_link_args="-m32 $LDFLAGS"
     ninja -j$(nproc) -C build32
 }

@@ -3,14 +3,14 @@ pkgdesc="Meta LLVM/Clang stack: Clang, libc++, libc++abi, libunwind, lld, compil
 url="https://llvm.org/"
 license=('Apache-2.0 WITH LLVM-exception')
 arch=('x86_64')
-pkgver=23.r533
+pkgver=23.r2495
 pkgrel=1
 pkgname=('llvm-ETJAKEOC')
 makedepends=('git' 'cmake' 'ninja' 'python' 'python-setuptools' 'libffi' 'libedit' 'ncurses' 'libxml2' 'opencl-headers' 'z3' 'zstd')
 depends=('zlib' 'zstd' 'libffi' 'libedit' 'ncurses' 'libxml2')
-source=("git+https://github.com/llvm/llvm-project.git")
+source=("git+https://github.com/llvm/llvm-project.git#branch=main")
 sha512sums=('SKIP')
-options=('!debug' '!docs' '!emptydirs' '!lto' '!makeflags' '!staticlibs' '!strip' 'buildflags' 'ccache')
+options=('ccache' '!debug' '!docs' '!emptydirs' '!lto' '!makeflags' '!staticlibs' '!strip' '!buildflags')
 
 # Thank you, you worthless fucking cucks at LLVM for making this absurdly more difficult, go fuck yourselves!
 pkgver() {
@@ -55,12 +55,12 @@ _cmake_flags=(
   -DCMAKE_BUILD_TYPE=Release
   -DCMAKE_INSTALL_PREFIX=/usr
   -DCMAKE_INSTALL_LIBDIR=lib
-  -DCMAKE_C_COMPILER="$CC"
-  -DCMAKE_CXX_COMPILER="$CXX"
+  -DCMAKE_C_COMPILER="/bin/clang"
+  -DCMAKE_CXX_COMPILER="/bin/clang++"
   -DCMAKE_CXX_STANDARD=17
-  -DLLVM_USE_LINKER="$LD"
-  -DCMAKE_C_FLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -fPIC"
-  -DCMAKE_CXX_FLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -fPIC"
+  -DLLVM_USE_LINKER="lld"
+  -DCMAKE_C_FLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -fPIC -flto -ffat-lto-objects"
+  -DCMAKE_CXX_FLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -fPIC -flto -ffat-lto-objects"
   -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -O3"
   -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-pc-linux-gnu
   -DLLVM_HOST_TRIPLE=x86_64-pc-linux-gnu
@@ -70,20 +70,21 @@ _cmake_flags=(
   -DCMAKE_ASM_COMPILER_TARGET=x86_64-pc-linux-gnu
   -DLLVM_BUILD_TESTS=OFF
   -DLLVM_INSTALL_PACKAGE_DIR=/usr/lib/cmake/llvm
-  -DLLVM_ENABLE_LTO=OFF
+  -DLLVM_ENABLE_LTO=ON
 
   -DLIBCLC_TARGETS_TO_BUILD="amdgcn-mesa-mesa3d;clspv--"
   -DLLVM_ENABLE_PROJECTS="bolt;clang;clang-tools-extra;lld;llvm"
   -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt;libclc"
-  -DLLVM_TARGETS_TO_BUILD="X86;AMDGPU;SPIRV;AArch64;ARM;WebAssembly"
+  -DLLVM_TARGETS_TO_BUILD="X86;AMDGPU;SPIRV;AArch64;ARM;WebAssembly;RISCV;BPF"
   -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=DirectX
   -DLLVM_OPTIMIZED_TABLEGEN=ON
   -DLLVM_PARALLEL_LINK_JOBS=4
 
   -DCLANG_LINK_CLANG_DYLIB=ON
   -DLLVM_CCACHE_BUILD=ON
-  -DLLVM_ENABLE_RTTI=ON
   -DLLVM_ENABLE_RPATH=ON
+  -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+  -DLLVM_ENABLE_RTTI=ON
   -DLLVM_ENABLE_EH=ON
   -DLLVM_ENABLE_FFI=ON
   -DLLVM_ENABLE_PIC=ON
@@ -126,11 +127,11 @@ _cmake_flags=(
 )
 
 build() {
-  export LD_LIBRARY_PATH="$srcdir/_build/lib"
+#  export PATH="$srcdir/_build/bin:$PATH"
+#  export LD_LIBRARY_PATH="$srcdir/_build/lib:$LD_LIBRARY_PATH"
   ulimit -s unlimited
   cmake -B "$srcdir/_build" -S "$srcdir/llvm-project/llvm" "${_cmake_flags[@]}"
   ninja -C "$srcdir/_build"
-  DESTDIR="$srcdir/install" ninja -j4 -C "$srcdir/_build" install
 }
 
 package() {
@@ -138,7 +139,8 @@ package() {
   conflicts=($provides)
 
   mkdir -p "$pkgdir/usr/lib/pkgconfig"
-  cp -a "$srcdir/install/usr/." "$pkgdir/usr/"
+  DESTDIR="$pkgdir" ninja -j4 -C "$srcdir/_build" install
+#  cp -a "$srcdir/install/usr/." "$pkgdir/usr/"
   tee "$pkgdir/usr/lib/pkgconfig/libunwind.pc" <<'EOF'
 prefix=/usr
 exec_prefix=${prefix}
