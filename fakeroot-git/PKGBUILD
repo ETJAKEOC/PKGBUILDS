@@ -10,45 +10,55 @@ groups=('base-devel')
 depends=('glibc' 'filesystem' 'sed' 'util-linux' 'sh')
 makedepends=('systemd' 'po4a')
 provides=("$_pkgname")
-source=(git+${url}.git)
-sha256sums=('SKIP')
-options=('!lto')
+source=("git+${url}.git" 'clang-build.patch')
+sha256sums=('SKIP' 'SKIP')
+options=('ccache' '!debug' '!docs' '!emptydirs' 'lto' '!makeflags' '!staticlibs' '!strip' '!buildflags')
 
 pkgver() {
   cd "$_pkgname"
   git describe --long | sed 's/^debian\///;s/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
-prepare() {
-  cd $_pkgname
-  ./bootstrap
-}
-
 build() {
   cd $_pkgname
+
+  patch -p1 < "$srcdir/clang-build.patch"
 
   export CC=clang
   export CPP=clang-cpp
   export CXX=clang++
   export LD=lld
-  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0  -std=gnu23"
-  export CPPFLAGS="-I/usr/include ${CFLAGS}"
-  export CXXFLAGS="${CFLAGS}"
-  export LDFLAGS="-fuse-ld=lld -O3 -pthread"
+  export LLVM_CONFIG=llvm-config
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export AS=llvm-as
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
 
-  ./configure --prefix=/usr \
-    --libdir=/usr/lib/libfakeroot \
+  export _COMMON_FLAGS="-march=znver2 -mtune=znver2 -O3 -g0 -pipe -fPIC"
+  export CPPFLAGS="$_COMMON_FLAGS"
+  export CFLAGS="$_COMMON_FLAGS -D_STAT_VER=0 -D_GNU_SOURCE"
+  export CXXFLAGS="$_COMMON_FLAGS -D_STAT_VER=0 -D_GNU_SOURCE"
+  export LDFLAGS="-fuse-ld=lld -O3 -lacl"
+
+  ./bootstrap
+  ./configure --prefix=/usr --libdir=/usr/lib/libfakeroot \
     --disable-static \
+    --enable-shared \
     --with-ipc=sysv \
     --enable-pic
 
   sed -i 's/#define SETGROUPS_SIZE_TYPE unknown/#define SETGROUPS_SIZE_TYPE gid_t/' config.h
-  sed -i 's/#undef _STAT_VER/#define _STAT_VER 0/' config.h
 
   make -j$(nproc)
 
-  cd doc
-  po4a -k 0 --rm-backups --variable 'srcdir=../doc/' po4a/po4a.cfg
+  cd .libs
+  clang -shared -fPIC -o libfakeroot.so libfakeroot.o libfakeroot_inode64.o libfakeroot_unix2003.o -ldl -lc
 }
 
 package() {
@@ -56,8 +66,6 @@ package() {
   make DESTDIR="$pkgdir" install
   install -dm0755 "$pkgdir/etc/ld.so.conf.d/"
   echo '/usr/lib/libfakeroot' > "$pkgdir/etc/ld.so.conf.d/fakeroot.conf"
-  install -Dm0644 README "$pkgdir/usr/share/doc/$_pkgname/README"
-  strip --strip-unneeded "$pkgdir"/usr/bin/*
 
   echo "===================================================================="
   echo "The install will fail if you don't already have a working fakeroot"

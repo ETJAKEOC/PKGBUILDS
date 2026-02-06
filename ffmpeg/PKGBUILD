@@ -1,15 +1,14 @@
 pkgname=ffmpeg
 pkgver=8.1.dev
 pkgrel=1
-pkgdesc='Complete solution to record, convert and stream audio and video'
+pkgdesc='Complete solution to record, convert and stream audio and video - tuned for Ryzen 9 3900XT built with clang thin LTO'
 arch=(x86_64)
 url="https://ffmpeg.org"
 license=(GPL-3.0-only)
 depends=(alsa-lib aom bzip2 cairo dav1d fontconfig freetype2 fribidi glib2 glibc glslang gmp gnutls gsm harfbuzz jack lame libass libavc1394 libbluray libbs2b libdrm libdvdnav libdvdread libgl libiec61883 libjxl libmodplug libopenmpt libplacebo libpulse libraw1394 librsvg libsoxr libssh libtheora libva libvdpau libvorbis libvpx libwebp libx11 libxcb libxext libxml2 libxv ocl-icd onevpl opencore-amr openjpeg2 opus rav1e rubberband sdl2 snappy speex srt svt-av1 v4l-utils vapoursynth vid.stab vmaf vulkan-icd-loader x264 x265 xvidcore xz zeromq zimg zlib)
-makedepends=(amf-headers avisynthplus clang ffnvcodec-headers frei0r-plugins git ladspa mesa nasm opencl-headers vulkan-headers)
+makedepends=(clang ffnvcodec-headers frei0r-plugins git ladspa mesa nasm opencl-headers vulkan-headers)
 provides=(libavcodec.so libavdevice.so libavfilter.so libavformat.so libavutil.so libswresample.so libswscale.so)
-# Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your DLAGENTS in "/etc/makepkg.conf"
-source=(git-lfs+"https://git.ffmpeg.org/ffmpeg.git")
+source=(git+"https://git.ffmpeg.org/ffmpeg.git")
 b2sums=('SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!strip' 'ccache' 'buildflags' 'lto' 'makeflags')
 
@@ -24,10 +23,20 @@ build() {
   ./configure \
     --prefix=/usr \
     --disable-debug \
+    --disable-htmlpages \
+    --disable-podpages \
+    --disable-txtpages \
     --disable-static \
     --disable-stripping \
-    --enable-amf \
-    --enable-avisynth \
+    --disable-runtime-cpudetect \
+    --cpu=znver2 \
+    --extra-cflags="-O3 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition -flto=thin" \
+    --extra-cxxflags="-O3 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-semantic-interposition -flto=thin" \
+    --extra-ldflags="-Wl,-O2 -flto=thin" \
+    --disable-small \
+    --enable-pthreads \
+    --disable-amf \
+    --disable-avisynth \
     --disable-cuda-llvm \
     --enable-lto \
     --enable-fontconfig \
@@ -35,6 +44,8 @@ build() {
     --enable-gmp \
     --enable-gnutls \
     --enable-gpl \
+    --enable-version3 \
+    --enable-nonfree \
     --enable-ladspa \
     --enable-libaom \
     --enable-libass \
@@ -47,22 +58,22 @@ build() {
     --enable-libfreetype \
     --enable-libfribidi \
     --enable-libglslang \
-    --enable-libgsm \
+    --disable-libgsm \
     --enable-libharfbuzz \
-    --enable-libiec61883 \
-    --enable-libjack \
+    --disable-libiec61883 \
+    --disable-libjack \
     --enable-libjxl \
-    --enable-libmodplug \
+    --disable-libmodplug \
     --enable-libmp3lame \
-    --enable-libopencore_amrnb \
-    --enable-libopencore_amrwb \
+    --disable-libopencore_amrnb \
+    --disable-libopencore_amrwb \
     --enable-libopenjpeg \
     --enable-libopenmpt \
     --enable-libopus \
     --enable-libplacebo \
-    --enable-libpulse \
+    --disable-libpulse \
     --enable-librav1e \
-    --enable-librsvg \
+    --disable-librsvg \
     --enable-librubberband \
     --enable-libsnappy \
     --enable-libsoxr \
@@ -75,7 +86,7 @@ build() {
     --enable-libvidstab \
     --enable-libvmaf \
     --enable-libvorbis \
-    --enable-libvpl \
+    --disable-libvpl \
     --enable-libvpx \
     --enable-libwebp \
     --enable-libx264 \
@@ -84,15 +95,15 @@ build() {
     --enable-libxml2 \
     --enable-libxvid \
     --enable-libzimg \
-    --enable-libzmq \
+    --disable-libzmq \
     --disable-nvdec \
     --disable-nvenc \
     --enable-opencl \
     --enable-opengl \
     --enable-pic \
     --enable-shared \
+    --enable-vaapi \
     --enable-vapoursynth \
-    --enable-version3 \
     --enable-vulkan \
     --cc="$CC" \
     --cxx="$CXX"

@@ -1,0 +1,32 @@
+--- a/libfakeroot.c	2026-02-05 16:38:56.128486073 -0500
++++ b/libfakeroot.c	2026-02-05 16:40:01.592997914 -0500
+@@ -29,7 +29,9 @@
+    fakeroot
+    always bombs. Simple fix:
+ */
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ 
+ #define FAKEROOT_LIBFAKEROOT
+ 
+@@ -86,7 +88,7 @@
+ #define SEND_STAT(a,b,c) send_stat(a,b)
+ #define SEND_STAT64(a,b,c) send_stat64(a,b)
+ #define SEND_GET_STAT(a,b) send_get_stat(a)
+-#define SEND_GET_STAT64(a,b) send_get_stat64(a)
++#define SEND_GET_STAT64(a,b) send_get_stat64((struct stat64 *)(a))
+ #define SEND_GET_XATTR64(a,b,c) send_get_xattr64(a,b)
+ #endif
+ 
+--- a/Makefile.am	2026-02-05 16:47:46.970977751 -0500
++++ b/Makefile.am	2026-02-05 16:48:47.473295412 -0500
+@@ -9,7 +9,7 @@
+ 
+ lib_LTLIBRARIES=libfakeroot.la
+ libfakeroot_la_SOURCES=libfakeroot.c statconv/glibc/linux/alpha/stats.h wrapdef.h  wrapstruct.h communicate.h
+-libfakeroot_la_LDFLAGS=-release 0
++libfakeroot_la_LDFLAGS=-module -avoid-version -no-undefined -fPIC
+ if MACOSX
+ libfakeroot_la_DEPENDENCIES=wrapdef.h wrapstruct.h libcommunicate.la libmacosx.la $(LTLIBOBJS)
+ libfakeroot_la_LIBADD = libcommunicate.la libmacosx.la $(LTLIBOBJS)

@@ -16,7 +16,7 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
              'libpwquality' 'qrencode' 'lib32-gcc-libs' 'python-pefile')
 conflicts=("mkinitcpio<38-1" 'systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
 provides=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
-options=('!emptydirs' '!docs' '!debug' '!strip' '!ccache' '!lto' 'buildflags' 'makeflags')
+options=('!emptydirs' '!docs' '!debug' '!strip' '!ccache' 'lto' 'buildflags' 'makeflags')
 source=("$pkgbase::git+${url}.git"
         'systemd-user.pam'
         'systemd-hook'
@@ -52,7 +52,7 @@ build() {
     --auto-features enabled \
     -Db_pie=true \
     -Db_staticpic=true \
-    -Db_lto=false \
+    -Db_lto=true \
     -Dpython.bytecompile=2 \
     -Dbackend=ninja \
     -Db_colorout=always \
@@ -67,7 +67,7 @@ build() {
     -Dinstall-tests=false
     -Dslow-tests=false
     -Dtests=false
-    -Dbpf-framework=disabled
+    -Dbpf-framework=enabled
     -Dima=false
     -Dapparmor=disabled
     -Dselinux=disabled

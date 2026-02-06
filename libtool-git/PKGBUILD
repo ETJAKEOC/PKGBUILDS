@@ -1,5 +1,5 @@
 pkgname=libtool-git
-pkgver=2.5.4+1.gbaa1fe41
+pkgver=2.6.0+14.g1b6fc194
 pkgrel=1
 pkgdesc="A generic library support script (git version)"
 arch=('i686' 'x86_64')
@@ -11,7 +11,7 @@ makedepends=("clang")
 provides=("libtool=$pkgver" "libltdl=$pkgver" "libtool-multilib=$pkgver")
 conflicts=('libtool' 'libltdl' 'libtool-multilib')
 replaces=('libtool' 'libltdl' 'libtool-multilib')
-source=(git://git.savannah.gnu.org/libtool.git)
+source=(git+git://git.savannah.gnu.org/libtool.git)
 md5sums=('SKIP')
 
 pkgver() {
@@ -19,15 +19,20 @@ pkgver() {
   git describe --long --abbrev=8 | sed 's/^v//; s/-/+/; s/-/\./'
 }
 
+prepare() {
+  cd ${srcdir}/libtool
+  git submodule update --init --recursive
+}
+
 build() {
   cd ${srcdir}/libtool
   ./bootstrap
   ./configure -C --prefix=/usr lt_cv_sys_lib_dlsearch_path_spec="/usr/lib /usr/lib32" --datadir=/usr/share --enable-lto=true --enable-llvm=true \
   --enable-ltdl-install --enable-threads=isox+posix --disable-assert --enable-dependency-tracking CC=clang CPP=clang-cpp CXX=clang++ \
-  CFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
-  CXXFLAGS="-march=bdver2 -mtune=bdver2 -O3 -fopenmp -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
-  CPPFLAGS="-march=bdver2 -mtune=bdver2 -pipe" \
-  LDFLAGS="-fuse-ld=lld -fPIC -fopenmp -flto -O3 -pipe -pthread"
+  CFLAGS="-march=znver2 -mtune=znver2 -O3 -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CXXFLAGS="-march=znver2 -mtune=znver2 -O3 -flto -pipe -pthread -fPIC -g0  -ffat-lto-objects" \
+  CPPFLAGS="-march=znver2 -mtune=znver2 -pipe" \
+  LDFLAGS="-fuse-ld=lld -fPIC -flto -O3 -pipe -pthread"
   make LLVM=1 LLVM_IAS=1 -j4
 }
 
