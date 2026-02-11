@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libunwind
+Description: LLVM libunwind
+Version: 23.0.0
+Libs: -L${libdir} -lunwind
+Cflags: -I${includedir}

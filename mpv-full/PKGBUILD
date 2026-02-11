@@ -1,5 +1,5 @@
 pkgname=mpv-full
-pkgver=0.41.0.46.g72efbfd009
+pkgver=0.41.0.170.g4fd2600c65
 pkgrel=1
 pkgdesc='A free, open source, and cross-platform media player (with all possible libs)'
 arch=('x86_64')
@@ -16,7 +16,7 @@ optdepends=(
     'yt-dlp: for video-sharing websites playback')
 provides=('mpv')
 conflicts=('mpv')
-options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
 source=("git+https://github.com/mpv-player/mpv.git")
 sha256sums=('SKIP')
 
@@ -31,28 +31,23 @@ prepare() {
 }
 
 build() {
-    export CC=/usr/bin/clang
-    export CPP=/usr/bin/clang-cpp
-    export CXX=/usr/bin/clang++
-    export LD=/usr/bin/lld
-    export CC_LD=/usr/bin/lld
-    export CXX_LD=/usr/bin/lld
-    export AR=/usr/bin/llvm-ar
-    export NM=/usr/bin/llvm-nm
-    export STRIP=/usr/bin/llvm-strip
-    export OBJCOPY=/usr/bin/llvm-objcopy
-    export OBJDUMP=/usr/bin/llvm-objdump
-    export READELF=/usr/bin/llvm-readelf
-    export RANLIB=/usr/bin/llvm-ranlib
-    export HOSTCC=/usr/bin/clang
-    export HOSTCXX=/usr/bin/clang++
-    export HOSTAR=/usr/bin/llvm-ar
-    export HOSTLD=/usr/bin/lld
-    export COMFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -flto=full"
-    export CPPFLAGS="$COMFLAGS"
-    export CFLAGS="$COMFLAGS"
-    export CXXFLAGS="$COMFLAGS"
-    export LDFLAGS="-fuse-ld=lld -O3 -Wl,--icf=all -Wl,--gc-sections -flto=full"
+    export CC=clang
+    export CPP=clang-cpp
+    export CXX=clang++
+    export LD=lld
+    export CC_LD=lld
+    export CXX_LD=lld
+    export AR=llvm-ar
+    export NM=llvm-nm
+    export STRIP=llvm-strip
+    export OBJCOPY=llvm-objcopy
+    export OBJDUMP=llvm-objdump
+    export READELF=llvm-readelf
+    export RANLIB=llvm-ranlib
+    export CPPFLAGS="$CPPFLAGS"
+    export CFLAGS="$CMFLAGS"
+    export CXXFLAGS="$CXXFLAGS"
+    export LDFLAGS="$LDFLAGS"
 
     meson "$srcdir/mpv" "$srcdir/build" -Dprefix=/usr -Dlibdir=/usr/lib \
         --optimization 3 \
@@ -62,11 +57,11 @@ build() {
         -Dpython.bytecompile=2 \
         -Dbackend=ninja \
         -Db_colorout=always \
-        -Dc_compiler="/usr/bin/clang" \
-        -Dc_args="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -flto=full" \
-        -Dc_link_args="-fuse-ld=lld -O3 -Wl,--icf=all -Wl,--gc-sections -flto=full" \
-        -Dcpp_args="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -flto=full" \
-        -Dcpp_link_args="-fuse-ld=lld -O3 -Wl,--icf=all -Wl,--gc-sections -flto=full" \
+        -Dc_compiler="$CC" \
+        -Dc_args="$CFLAGS" \
+        -Dc_link_args="$LDFLAGS" \
+        -Dcpp_args="$CPPFLAGS" \
+        -Dcpp_link_args="$LDFLAGS" \
         -Dspirv-cross=disabled \
         -Dgpl=true \
         -Dcplayer=true \

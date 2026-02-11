@@ -1,6 +1,6 @@
 pkgname=ffmpeg
 pkgver=8.1.dev
-pkgrel=1
+pkgrel=420
 pkgdesc='Complete solution to record, convert and stream audio and video - tuned for Ryzen 9 3900XT built with clang thin LTO'
 arch=(x86_64)
 url="https://ffmpeg.org"
