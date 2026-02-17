@@ -13,7 +13,7 @@ license=('custom')
 # Please add "git-lfs::/usr/bin/git-lfs fetch %u %o" to your DLAGENTS in "/etc/makepkg.conf"
 source=('mesa::git-lfs+https://gitlab.freedesktop.org/mesa/mesa.git')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
-options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' '!buildflags' '!lto' '!makeflags' '!strip')
 
 declare -A _crates=(
    proc-macro2    1.0.106
@@ -66,20 +66,26 @@ prepare() {
 }
 
 build () {
-  export CC=/usr/bin/clang
-  export CXX=/usr/bin/clang++
-  export CPP=/usr/bin/clang-cpp
-  export LD=/usr/bin/lld
-  export CC_LD=/usr/bin/lld
-  export CXX_LD=/usr/bin/lld
-  export AR=/usr/bin/llvm-ar
-  export NM=/usr/bin/llvm-nm
-  export STRIP=/usr/bin/llvm-strip
-  export OBJCOPY=/usr/bin/llvm-objcopy
-  export OBJDUMP=/usr/bin/llvm-objdump
-  export READELF=/usr/bin/llvm-readelf
-  export RANLIB=/usr/bin/llvm-ranlib
+  export CC=clang
+  export CXX=clang++
+  export CPP=clang-cpp
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
   export LLVM_VERSION=23
+
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC"
+  export LDFLAGS="-fuse-ld=lld -O3"
+  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C prefer-dynamic -C overflow-checks=off"
 
 local _meson_flags=(
   # Core Meson / Build System Setup
@@ -147,11 +153,11 @@ local _meson_flags=(
 
     meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=false -D draw-use-llvm=true -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream \
         -D c_args="$CFLAGS" -D c_link_args="$LDFLAGS" -D cpp_args="$CPPFLAGS" -D cpp_link_args="$LDFLAGS"
-    ninja -j$(nproc) -C build
+    ninja -j12 -C build
 
     meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D llvm=disabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream \
         -D c_args="-m32 $CFLAGS" -D c_link_args="-m32 $LDFLAGS" -D cpp_args="-m32 $CPPFLAGS" -D  cpp_link_args="-m32 $LDFLAGS"
-    ninja -j$(nproc) -C build32
+    ninja -j12 -C build32
 }
 
 package() {

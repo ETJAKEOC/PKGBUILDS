@@ -1,0 +1,56 @@
+_pkgname="godot"
+pkgname="$_pkgname-git"
+pkgver=4.7
+pkgrel=1
+pkgdesc="Advanced cross-platform 2D and 3D game engine"
+url="https://github.com/godotengine/godot"
+license=('MIT')
+arch=('x86_64')
+depends=(embree freetype2 graphite harfbuzz harfbuzz-icu libglvnd libspeechd libsquish libtheora libvorbis libwebp libwslay libxcursor libxi libxinerama libxrandr mbedtls2 miniupnpc pcre2)
+makedepends=(alsa-lib git scons wayland yasm)
+provides=("$_pkgname")
+conflicts=("$_pkgname" "godot-export-templates-git")
+_pkgsrc="godot"
+source=("$_pkgsrc"::"git+$url.git")
+sha256sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' 'buildflags' '!lto' 'makeflags' '!strip')
+
+pkgver() {
+  cd "$_pkgsrc"
+  local _major _minor _version _tag _revision _hash
+  _major=$(cat version.py | grep "major" | sed 's/major = //')
+  _minor=$(cat version.py | grep "minor" | sed 's/minor = //')
+  _version="${_major:?}.${_minor:?}"
+  printf '%s' "${_version:?}"
+}
+
+build() {
+  cd "$_pkgsrc"
+
+  echo "Building godot editor..."
+  scons CC=clang CPP=clang-cpp CXX=clang++ LINK=clang++ SHLINK=clang++ LINKFLAGS="-fuse-ld=ld.lld" werror=no use_llvm=yes lto=none \
+  platform=linuxbsd target=editor production=yes
+
+  echo "Building godo export template release..."
+  scons CC=clang CPP=clang-cpp CXX=clang++ LINK=clang++ SHLINK=clang++ LINKFLAGS="-fuse-ld=ld.lld" werror=no use_llvm=yes lto=none \
+  platform=linux tools=no target=template_release arch=x86_64
+}
+
+package() {
+  cd "$_pkgsrc"
+  install -Dm755 bin/godot.linuxbsd.editor.x86_64.llvm "$pkgdir/usr/bin/godot"
+
+  # export templates
+  local _templates_path="usr/share/godot/templates"
+  mkdir -pm755 "$pkgdir/$_templates_path"
+
+  install -Dm644 "bin/godot.linuxbsd.template_release.x86_64.llvm" -t "$pkgdir/$_templates_path"
+
+  # resources
+  install -Dm644 icon_outlined.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/$_pkgname.svg"
+  install -Dm644 misc/dist/linux/org.godotengine.Godot.desktop -t "$pkgdir/usr/share/applications/"
+  install -Dm644 misc/dist/linux/org.godotengine.Godot.xml -t "$pkgdir/usr/share/mime/packages/"
+
+  # license
+  install -D -m644 LICENSE.txt "$pkgdir/usr/share/licenses/godot-git/LICENSE"
+}

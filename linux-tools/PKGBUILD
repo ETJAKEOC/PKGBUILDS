@@ -1,8 +1,9 @@
 pkgbase=linux-tools
-pkgname=('bootconfig' 'bpf' 'cpupower' 'hyperv' 'linux-tools-meta' 'perf' 'tmon' 'turbostat' 'usbip' 'x86_energy_perf_policy' 'intel-speed-select')
-pkgver=6.18
+pkgname=('bootconfig' 'bpf' 'cpupower' 'linux-tools-meta' 'tmon' 'turbostat' 'usbip' 'x86_energy_perf_policy' 'intel-speed-select')
+#pkgname=('bootconfig' 'bpf' 'cpupower' 'hyperv' 'linux-tools-meta' 'perf' 'tmon' 'turbostat' 'usbip' 'x86_energy_perf_policy' 'intel-speed-select')
+pkgver=6.19.0
 #rc=rc4
-pkgrel=8
+pkgrel=420
 license=('GPL-2.0-only')
 arch=('x86_64')
 url='https://www.kernel.org'
@@ -12,7 +13,7 @@ makedepends=('git' 'asciidoc' 'xmlto' 'perl' 'python' 'python-setuptools' 'slang
 	'libcap' 'python-docutils' 'libcap' 'llvm' 'clang' 'libnl')
 groups=("$pkgbase")
 #source=("https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-${pkgver}-${rc}.tar.gz"
-source=("https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-${pkgver}.tar.gz"
+source=("https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${pkgver}.tar.xz"
         'cpupower.default' 'cpupower.install' 'cpupower.service' 'usbipd.service' 'hv_kvp_daemon.service' 'hv_vss_daemon.service')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
@@ -69,7 +70,7 @@ build() {
   echo ':: bpf'
   pushd linux/tools/bpf
   make -C bpftool all doc
-  make runqslower
+#  make runqslower
   popd
 
   echo ':: bootconfig'
@@ -109,36 +110,6 @@ package_linux-tools-meta() {
   conflicts=(
     'acpidump'
   )
-}
-
-package_perf() {
-  pkgdesc='Linux kernel performance auditing tool'
-  depends=('glibc' 'perl' 'python' 'slang' 'elfutils' 'libunwind' 'binutils'
-           'numactl' 'audit' 'coreutils' 'glib2' 'xz' 'zlib' 'libelf' 'bash'
-           'zstd' 'libcap' 'libtraceevent' 'openssl' 'libsframe.so' 'llvm-libs' 'libpfm')
-
-  cd linux/tools/perf
-  make \
-    -f Makefile.perf \
-    prefix=/usr \
-    lib=lib/perf \
-    perfexecdir=lib/perf \
-    EXTRA_CFLAGS=' -Wno-error=bad-function-cast -Wno-error=declaration-after-statement -Wno-error=switch-enum' \
-    NO_SDT=1 \
-    BUILD_BPF_SKEL=0 \
-    PYTHON=python \
-    PYTHON_CONFIG=python-config \
-    JDIR="/usr/lib/jvm/default" \
-    DESTDIR="$pkgdir" \
-    LLVM=1 \
-    LIBPFM4=1 \
-    install install-python_ext
-  cd "$pkgdir"
-  mkdir "$pkgdir/etc/ld.so.conf.d"
-  echo '/usr/lib/perf' > "$pkgdir/etc/ld.so.conf.d/$pkgname.conf"
-  install -Dm644 etc/bash_completion.d/perf usr/share/bash-completion/completions/perf
-  rm -r etc/bash_completion.d
-  find usr/share -type f -exec chmod a-x {} \;
 }
 
 package_cpupower() {
@@ -200,26 +171,28 @@ package_turbostat() {
   make install DESTDIR="$pkgdir"
 }
 
-package_hyperv() {
-  pkgdesc='Hyper-V tools'
-  depends=('glibc')
+#package_hyperv() {
+#  pkgdesc='Hyper-V tools'
+#  depends=('glibc')
 
-  cd linux/tools/hv
-  make install DESTDIR="$pkgdir" sbindir=/usr/bin libexecdir=/usr/lib
-  for _p in hv_kvp_daemon hv_vss_daemon; do
-    install -Dm644 "$srcdir/$_p.service" "$pkgdir/usr/lib/systemd/system/$_p.service"
-  done
-}
+#  cd linux/tools/hv
+#  make install DESTDIR="$pkgdir" sbindir=/usr/bin libexecdir=/usr/lib
+#  for _p in hv_kvp_daemon hv_vss_daemon; do
+#    install -Dm644 "$srcdir/$_p.service" "$pkgdir/usr/lib/systemd/system/$_p.service"
+#  done
+#}
 
 package_bpf() {
   pkgdesc='BPF tools'
   depends=('glibc' 'readline' 'zlib' 'libelf' 'libcap' 'zstd' 'llvm-libs' 'binutils' 'libsframe.so')
 
-  cd linux/tools/bpf
-  make runqslower_install install prefix=/usr DESTDIR="$pkgdir"
-  mv "$pkgdir"/usr/sbin/bpftool "$pkgdir"/usr/bin/bpftool
-  rmdir "$pkgdir"/usr/sbin
-  make -C bpftool doc-install prefix=/usr/share DESTDIR="$pkgdir"
+  mkdir -p "$pkgdir"/usr/bin
+  #cd linux/tools/bpf
+  #make runqslower_install install prefix=/usr DESTDIR="$pkgdir"
+  cp -a "$srcdir"/linux/tools/bpf/bpftool/bpftool "$pkgdir"/usr/bin/bpftool
+  #mv "$pkgdir"/usr/sbin/bpftool "$pkgdir"/usr/bin/bpftool
+  #rmdir "$pkgdir"/usr/sbin
+  #make -C bpftool doc-install prefix=/usr/share DESTDIR="$pkgdir"
 }
 
 package_bootconfig() {

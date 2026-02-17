@@ -14,9 +14,10 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
              'bash-completion' 'p11-kit' 'systemd' 'libfido2' 'tpm2-tss' 'rsync'
              'bpf' 'libbpf' 'clang' 'llvm' 'curl' 'gnutls' 'python-pyelftools'
              'libpwquality' 'qrencode' 'lib32-gcc-libs' 'python-pefile')
-conflicts=("mkinitcpio<38-1" 'systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
-provides=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git')
-options=('!emptydirs' '!docs' '!debug' '!strip' '!ccache' 'lto' 'buildflags' 'makeflags')
+_major=${pkgver%%.devel*}
+conflicts=('mkinitcpio' 'systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git' "systemd-libs=${_major}")
+provides=('systemd-git' 'systemd-libs-git' 'systemd-sysvcompat-git' 'systemd-ukify-git' "systemd-libs=${_major}")
+options=('!emptydirs' '!docs' '!debug' '!strip' '!ccache' '!lto' 'buildflags' 'makeflags')
 source=("$pkgbase::git+${url}.git"
         'systemd-user.pam'
         'systemd-hook'
@@ -56,7 +57,7 @@ build() {
     -Dpython.bytecompile=2 \
     -Dbackend=ninja \
     -Db_colorout=always \
-    -Dc_args="$CFLAGS" \
+    -Dc_args="$CFLAGS -Wno-error" \
     -Dc_link_args="$LDFLAGS" \
     -Dcpp_args="$CPPFLAGS" \
     -Dcpp_link_args="$LDFLAGS"
@@ -67,7 +68,7 @@ build() {
     -Dinstall-tests=false
     -Dslow-tests=false
     -Dtests=false
-    -Dbpf-framework=enabled
+    -Dbpf-framework=disabled
     -Dima=false
     -Dapparmor=disabled
     -Dselinux=disabled
@@ -102,7 +103,7 @@ build() {
     -Dsbat-distro-url="https://aur.archlinux.org/pkgbase/${pkgname}"
   )
   meson "${pkgbase}" "${_meson_options[@]}" build
-  ninja -C build
+  ninja -j4 -C build
 }
 
 package_systemd-git() {

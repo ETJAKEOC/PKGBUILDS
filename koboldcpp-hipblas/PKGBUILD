@@ -16,12 +16,12 @@ sha256sums=('SKIP' 'SKIP' 'SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
 
 build() {
-cd "${srcdir}/${pkgname}"
-export LLAMA_HIPBLAS=1
-export PYTORCH_ROCM_ARCH=gfx803
-export ROC_ENABLE_PRE_VEGA=1
-export ROCM_PATH=/opt/rocm
-make -j$(nproc)
+	cd "${srcdir}/${pkgname}"
+	export LLAMA_HIPBLAS=1
+	export PYTORCH_ROCM_ARCH=gfx803
+	export ROC_ENABLE_PRE_VEGA=1
+	export ROCM_PATH=/opt/rocm
+	make -j6
 }
 
 package() {
