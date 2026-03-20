@@ -62,9 +62,9 @@ build() {
     export READELF=llvm-readelf
     export RANLIB=llvm-ranlib
     export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
-    export CFLAGS="$CPPFLAGS -fPIC -flto=thin"
+    export CFLAGS="$CPPFLAGS -fPIC -flto=full"
     export CXXFLAGS="$CFLAGS"
-    export LDFLAGS="-fuse-ld=lld -O3 -flto=thin"
+    export LDFLAGS="-fuse-ld=lld -O3 -flto=full"
 
     _mf=(
         -Dprefix=/usr
