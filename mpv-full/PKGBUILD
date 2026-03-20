@@ -28,23 +28,6 @@ pkgver() {
 prepare() {
     cd "$srcdir/mpv"
     git submodule update --init --recursive
-
-    # Fixes for libplacebo-7.360
-    # Map removed color systems
-    sed -i \
-      -e 's/PL_COLOR_SYSTEM_YCGCO_RE/PL_COLOR_SYSTEM_YCGCO/g' \
-      -e 's/PL_COLOR_SYSTEM_YCGCO_RO/PL_COLOR_SYSTEM_YCGCO/g' \
-    video/csputils.c video/mp_image.c
-
-    # Replace alpha helper with chroma hack
-    sed -i 's/pl_alpha_from_av/pl_chroma_from_av/g' video/mp_image.c
-
-    # Remove removed blur calls
-    sed -i 's/PL_CLEAR_BLUR/PL_CLEAR_COLOR/g' video/out/vo_gpu_next.c
-    sed -i '/pars->params.blur_radius/d' video/out/vo_gpu_next.c
-
-    # Remove alpha_bits
-    sed -i '/\.alpha_bits/d' video/out/vulkan/context.c
 }
 
 build() {
