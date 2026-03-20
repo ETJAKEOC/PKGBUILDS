@@ -1,7 +1,7 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 
 pkgname=linux-firmware-ETJAKEOC
-pkgver=20260110.16.g2b93c4fc
+pkgver=20260309.21.g57303edc
 pkgrel=1
 pkgdesc="Firmware files for Linux - pulled directly from git.kernel.org, packaged up by ETJAKEOC"
 arch=("any")
@@ -20,7 +20,7 @@ pkgver() {
 	git describe --tags --always | sed 's/-/./g'
 }
 
-build() {
+prepare() {
 	cd "${srcdir}/${_gitname}"
 	git submodule update --init --recursive
 }

@@ -1,0 +1,74 @@
+pkgname=koboldcpp-llama
+pkgver=1.107.3
+pkgrel=1
+pkgdesc="An easy-to-use AI text-generation software for GGML and GGUF models"
+arch=('x86_64')
+url="https://github.com"
+license=('AGPL-3.0-only')
+depends=("python" "vulkan-icd-loader")
+provides=('koboldcpp' 'koboldcpp-git' 'llama.cpp' 'llama.cpp-git')
+conflicts=(${_provides} libggml ggml llama.cpp llama.cpp-vulkan llama.cpp-cuda llama.cpp-hip ik-llama.cpp ik-llama.cpp-cuda)
+optdepends=(
+    'python-customtkinter: for GUI launcher'
+    'python-darkdetect: for GUI launcher'
+    'python-psutil: increasing the process CPU priority'
+    'zenity: native file picker dialogs'
+    'yad: native file picker dialogs'
+    'python-jinja: jinja2 templates'
+)
+source=("koboldcpp::git+${url}/LostRuins/koboldcpp.git" "llama::git+${url}/ggml-org/llama.cpp.git" "koboldcpp.png")
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+options=('!ccache' '!debug' '!docs' '!emptydirs' '!lto' 'makeflags' '!staticlibs' 'strip' 'buildflags')
+
+prepare() {
+    _gsu="git submodule update --init --recursive --depth 1"
+    cd "$srcdir/llama"
+    $_gsu
+    cd "$srcdir/koboldcpp"
+    $_gsu
+}
+
+build() {
+    _flags="-march=znver2 -mtune=znver2 -O3 -pipe -fPIC -g0 -Wno-error -D_GNU_SOURCE"
+    _ldflags="-fuse-ld=lld -O3"
+    _cmake_options=(
+        -G Ninja -Wno-dev -Wno-deprecated -Wno-error=dev -Wno-error=deprecated
+	-DCMAKE_BUILD_TYPE=X86-Clang-Release
+        -DCMAKE_INSTALL_PREFIX='/usr'
+        -DBUILD_SHARED_LIBS=ON
+        -DLLAMA_CURL=ON
+        -DLLAMA_BUILD_TESTS=OFF
+        -DGGML_NATIVE=ON
+        -DGGML_ALL_WARNINGS=OFF
+        -DGGML_ALL_WARNINGS_3RD_PARTY=OFF
+        -DGGML_BUILD_EXAMPLES=OFF
+        -DGGML_BUILD_TESTS=OFF
+        -DGGML_BLAS=ON
+        -DGGML_BLAS_VENDOR=OpenBLAS
+	-DGPU_TARGETS=gfx803
+        -DGGML_VULKAN=ON
+        -DGGML_LTO=OFF
+	-DGGML_OPENCL=ON
+        -DGGML_RPC=OFF
+	-DGGML_ZENDNN=OFF
+	-DCMAKE_C_COMPILER=clang
+	-DCMAKE_CXX_COMPILER=clang++
+	-DCMAKE_C_FLAGS="$_flags -std=gnu11"
+	-DCMAKE_CXX_FLAGS="$_flags -std=gnu++20"
+	-DCMAKE_EXE_LINKER_FLAGS="$_ldflags"
+	-DCMAKE_SHARED_LINKER_FLAGS="$_ldflags"
+    )
+
+    cmake -B "$srcdir/llama-build" -S "$srcdir/llama" "${_cmake_options[@]}"
+    cmake --build "$srcdir/llama-build" --config Release -- -j$(nproc)
+
+    cmake -B "$srcdir/kobold-build" -S "$srcdir/koboldcpp" "${_cmake_options[@]}"
+    cmake --build "$srcdir/kobold-build" --config Release -- -j$(nproc)
+}
+
+package() {
+    cmake --install "$srcdir/llama-build" --prefix="$pkgdir/usr"
+    cmake --install "$srcdir/kobold-build" --prefix="$pkgdir/usr"
+    find "$pkgdir/usr/bin" -type f -exec strip --strip-all {} +
+    install -Dm644 "$srcdir/koboldcpp.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/koboldcpp.png"
+}

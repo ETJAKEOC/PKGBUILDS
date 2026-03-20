@@ -1,6 +1,6 @@
 pkgname=ffmpeg
-pkgver=8.1.dev
-pkgrel=420
+pkgver=8.2.dev
+pkgrel=1
 pkgdesc='Complete solution to record, convert and stream audio and video - tuned for Ryzen 9 3900XT built with clang thin LTO'
 arch=(x86_64)
 url="https://ffmpeg.org"
@@ -10,7 +10,7 @@ makedepends=(clang ffnvcodec-headers frei0r-plugins git ladspa mesa nasm opencl-
 provides=(libavcodec.so libavdevice.so libavfilter.so libavformat.so libavutil.so libswresample.so libswscale.so)
 source=(git+"https://git.ffmpeg.org/ffmpeg.git")
 b2sums=('SKIP')
-options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!strip' 'ccache' 'buildflags' 'lto' 'makeflags')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!strip' '!ccache' '!buildflags' '!lto' '!makeflags')
 
 pkgver() {
   cd "${pkgname}"
@@ -18,9 +18,36 @@ pkgver() {
 }
 
 build() {
-  export PKG_CONFIG_PATH='/usr/lib/mbedtls2/pkgconfig:$PKG_CONFIG_PATH'
   cd ${pkgname}
+
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
+  export CFLAGS="$CPPFLAGS -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition"
+  export CXXFLAGS="$CFLAGS"
+  export LDFLAGS="-fuse-ld=lld -O3 -Wl,--allow-shlib-undefined"
+
+  export PKG_CONFIG_PATH='/usr/lib/mbedtls2/pkgconfig:$PKG_CONFIG_PATH'
+
   ./configure \
+    --cpu=znver2 \
+    --cc="$CC" \
+    --cxx="$CXX" \
+    --extra-cflags="$CFLAGS" \
+    --extra-cxxflags="$CXXFLAGS" \
+    --extra-ldflags="$LDFLAGS" \
     --prefix=/usr \
     --disable-debug \
     --disable-htmlpages \
@@ -28,17 +55,24 @@ build() {
     --disable-txtpages \
     --disable-static \
     --disable-stripping \
-    --disable-runtime-cpudetect \
-    --cpu=znver2 \
-    --extra-cflags="-O3 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition -flto=thin" \
-    --extra-cxxflags="-O3 -march=znver2 -mtune=znver2 -pipe -fomit-frame-pointer -fno-semantic-interposition -flto=thin" \
-    --extra-ldflags="-Wl,-O2 -flto=thin" \
     --disable-small \
-    --enable-pthreads \
     --disable-amf \
     --disable-avisynth \
     --disable-cuda-llvm \
-    --enable-lto \
+    --disable-libgsm \
+    --disable-libiec61883 \
+    --disable-libjack \
+    --disable-libmodplug \
+    --disable-libopencore_amrnb \
+    --disable-libopencore_amrwb \
+    --disable-libpulse \
+    --disable-librsvg \
+    --disable-libvpl \
+    --disable-libzmq \
+    --disable-nvdec \
+    --disable-nvenc \
+    --enable-libplacebo \
+    --enable-pthreads \
     --enable-fontconfig \
     --enable-frei0r \
     --enable-gmp \
@@ -58,22 +92,13 @@ build() {
     --enable-libfreetype \
     --enable-libfribidi \
     --enable-libglslang \
-    --disable-libgsm \
     --enable-libharfbuzz \
-    --disable-libiec61883 \
-    --disable-libjack \
     --enable-libjxl \
-    --disable-libmodplug \
     --enable-libmp3lame \
-    --disable-libopencore_amrnb \
-    --disable-libopencore_amrwb \
     --enable-libopenjpeg \
     --enable-libopenmpt \
     --enable-libopus \
-    --enable-libplacebo \
-    --disable-libpulse \
     --enable-librav1e \
-    --disable-librsvg \
     --enable-librubberband \
     --enable-libsnappy \
     --enable-libsoxr \
@@ -86,7 +111,6 @@ build() {
     --enable-libvidstab \
     --enable-libvmaf \
     --enable-libvorbis \
-    --disable-libvpl \
     --enable-libvpx \
     --enable-libwebp \
     --enable-libx264 \
@@ -95,26 +119,19 @@ build() {
     --enable-libxml2 \
     --enable-libxvid \
     --enable-libzimg \
-    --disable-libzmq \
-    --disable-nvdec \
-    --disable-nvenc \
     --enable-opencl \
     --enable-opengl \
     --enable-pic \
     --enable-shared \
     --enable-vaapi \
     --enable-vapoursynth \
-    --enable-vulkan \
-    --cc="$CC" \
-    --cxx="$CXX"
-  make
-  make tools/qt-faststart
-  make doc/ff{mpeg,play}.1
+    --enable-vulkan
+  make -j$(nproc) -l$(nproc)
+  make -j$(nproc) -l$(nproc) tools/qt-faststart
 }
 
 package() {
   depends+=(libass.so libbluray.so libbs2b.so libdav1d.so libfreetype.so libharfbuzz.so libjxl.so libopenmpt.so libplacebo.so librav1e.so librsvg-2.so librubberband.so libva.so libva-drm.so libva-x11.so libvidstab.so libvorbisenc.so libvorbis.so libvpx.so libx264.so libx265.so libxvidcore.so libzimg.so libzmq.so)
-
-  make DESTDIR="${pkgdir}" -C ${pkgname} install install-man
+  make DESTDIR="${pkgdir}" -C ${pkgname} install
   install -Dm 755 ${pkgname}/tools/qt-faststart "${pkgdir}"/usr/bin/
 }

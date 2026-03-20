@@ -1,0 +1,49 @@
+pkgbase=gridcoinresearch-git
+pkgname=(gridcoinresearch-qt-git)
+pkgver=5.4.9.0
+pkgrel=1
+pkgdesc="A cryptocurrency that rewards users for participating on the BOINC network"
+makedepends=('git' 'boost' 'qt5-charts' 'qt5-tools' 'qrencode' 'db')
+depends=('boost-libs' 'db' 'miniupnpc' 'qrencode' 'qt5-base' 'qt5-charts')
+arch=('x86_64')
+url="https://gridcoin.us"
+license=('custom:gridcoin')
+
+_sourcename="Gridcoin-Research"
+
+source=("git+https://github.com/gridcoin/Gridcoin-Research.git#branch=master")
+
+sha256sums=('SKIP')
+
+#pkgver() {
+#  cd "$srcdir/$_sourcename"
+
+#  printf "%s%s" \
+#    "$(awk '/define\(_CLIENT_VERSION_MAJOR/ || /define\(_CLIENT_VERSION_MINOR/ || /define\(_CLIENT_VERSION_REVISION/ || /define\(_CLIENT_VERSION_BUILD/ { myversion=$NF; sub(""")""","""""",myversion); print myversion }' ORS='.' configure.ac)" \
+#    "$(git rev-parse --short HEAD)"
+#}
+
+build() {
+  cd "$srcdir/$_sourcename"
+  mkdir -p build
+  cmake -B build -S . \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DENABLE_GUI=ON \
+    -DENABLE_QRENCODE=ON \
+    -DUSE_DBUS=ON \
+    -DENABLE_UPNP=ON \
+    -DDEFAULT_UPNP=ON \
+    -DENABLE_PIE=ON \
+    -DENABLE_DOCS=OFF \
+    -DENABLE_TESTS=OFF \
+    -DUSE_QT6=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="clang" \
+    -DCMAKE_CXX_COMPILER="clang++"
+
+  cmake --build build
+}
+
+package_gridcoinresearch-qt-git() {
+  DESTDIR="$pkgdir" cmake --install "$srcdir/$_sourcename/build"
+}

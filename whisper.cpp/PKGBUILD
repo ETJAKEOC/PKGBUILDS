@@ -1,0 +1,50 @@
+pkgname=whisper.cpp
+pkgver=1.8.3
+pkgrel=1
+pkgdesc="Port of OpenAI's Whisper model in C/C++ (with OpenBLAS + Vulkan optimizations)"
+arch=('x86_64')
+url="https://github.com/ggerganov/whisper.cpp"
+license=("MIT")
+depends=('sdl2-compat')
+makedepends=('cmake' 'git')
+source=("${pkgname}::git+${url}.git" disable-deprecated.patch)
+sha256sums=('SKIP' '5f880edae417c7083a9403260e5c381285e4c52ccc39f127c6510fdfa249c1ad')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
+
+prepare() {
+  cd "${srcdir}/${pkgname}"
+  patch -Np1 -i "${srcdir}/disable-deprecated.patch"
+}
+
+build() {
+  _cflags="-O3 -march=znver2 -mtune=znver2 -fPIC -pipe -g0 -Wno-error -fomit-frame-pointer -fno-semantic-interposition -pthread"
+  cmake -G Ninja -B "${srcdir}/build" -S "${srcdir}/${pkgname}" \
+    -DBUILD_SHARED_LIBS=1 \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+    -DCMAKE_C_FLAGS="$_cflags" \
+    -DCMAKE_CXX_FLAGS="$_cflags" \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DGGML_CCACHE=1 \
+    -DGGML_NATIVE=1 \
+    -DGGML_OPENMP=1 \
+    -DGGML_RPC=1 \
+    -DGGML_SYCL=1 \
+    -DGGML_SYCL_F16=1 \
+    -DWHISPER_BUILD_SERVER=1 \
+    -DWHISPER_BUILD_TESTS=0 \
+    -DWHISPER_CURL=1 \
+    -DWHISPER_FFMPEG=1 \
+    -DWHISPER_SDL2=1 \
+    -DWHISPER_USE_SYSTEM_GGML=1
+
+  cmake --build "${srcdir}/build"
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build"
+
+  cp -r ${srcdir}/build/bin "${pkgdir}"/usr
+  install -Dm644 "${srcdir}/${pkgname}/LICENSE" \
+    -t "${pkgdir}/usr/share/licenses/${pkgname}"
+}

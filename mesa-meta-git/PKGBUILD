@@ -6,7 +6,7 @@ arch=('x86_64')
 makedepends=('git' 'xorgproto' 'meson' 'libxml2' 'libvdpau' 'libva' 'elfutils' 'libxrandr' 'glslang' 'directx-headers-git' 'python-mako' 'python-ply' 'cbindgen' 'wayland-protocols' 'python-packaging' 'python-pyaml' 'lib32-glibc' 'lib32-libdrm' 'lib32-vulkan-icd-loader')
 depends=('libdrm' 'libxxf86vm' 'libxdamage' 'libxshmfence' 'libelf' 'libglvnd' 'wayland' 'lm_sensors' 'vulkan-icd-loader' 'zstd' 'expat' 'gcc-libs' 'libxfixes' 'libx11' 'systemd-libs' 'libxext' 'libxcb' 'glibc' 'zlib' 'python' 'xcb-util-keysyms')
 optdepends=('opengl-man-pages: for the OpenGL API man pages')
-provides=('vulkan-mesa-layers' 'opencl-driver' 'opengl-driver' 'vulkan-driver' 'vulkan-radeon' 'vulkan-swrast' 'vulkan-virtio' 'libva-mesa-driver' 'mesa-vdpau' 'mesa-libgl' 'mesa' 'lib32-mesa' 'mesa-git' 'lib32-mesa-git')
+provides=('mesa-vdpau' 'mesa-libgl' 'mesa' 'lib32-mesa' 'mesa-git' 'lib32-mesa-git')
 conflicts=($provides)
 url="https://www.mesa3d.org"
 license=('custom')
@@ -17,9 +17,9 @@ options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' '!buildflags' '!l
 
 declare -A _crates=(
    proc-macro2    1.0.106
-   quote          1.0.44
-   syn            2.0.114
-   unicode-ident  1.0.22
+   quote          1.0.45
+   syn            2.0.117
+   unicode-ident  1.0.24
 )
 
 for _crate in "${!_crates[@]}"; do
@@ -63,6 +63,10 @@ prepare() {
     done
     cd mesa
     git submodule update --init --recursive
+
+    # Fix LLVM 23 incompatible pointer issue
+    echo "Patching ac_llvm_build.c for Clang 23..."
+    sed -i '/#if LLVM_VERSION_MAJOR >= 23/,/#else/ s/LLVMCreateDenormalFPEnvAttribute(ctx,/LLVMCreateDenormalFPEnvAttribute(ctx->context,/' "${srcdir}/mesa/src/amd/llvm/ac_llvm_build.c"
 }
 
 build () {
@@ -82,10 +86,10 @@ build () {
   export LLVM_VERSION=23
 
   export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
-  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC"
-  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC"
+  export CFLAGS="$CPPFLAGS -fPIC -flto=thin"
+  export CXXFLAGS="$CFLAGS"
   export LDFLAGS="-fuse-ld=lld -O3"
-  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C prefer-dynamic -C overflow-checks=off"
+  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
 
 local _meson_flags=(
   # Core Meson / Build System Setup
@@ -116,11 +120,6 @@ local _meson_flags=(
   -D platforms=x11,wayland
   -D xlib-lease=enabled
 
-  # Gallium Core
-  -D gallium-rusticl=false
-  -D gallium-extra-hud=true
-  -D gallium-va=enabled
-
   # Disabled Gallium / D3D / Media Paths
   -D gallium-d3d12-graphics=disabled
   -D gallium-d3d12-video=disabled
@@ -145,25 +144,24 @@ local _meson_flags=(
   -D libunwind=enabled
 
   # System Integration & Misc Options
-  -D lmsensors=enabled
   -D android-libbacktrace=disabled
   -D intel-rt=disabled
   -D tools=[]
 )
 
-    meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=false -D draw-use-llvm=true -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream \
-        -D c_args="$CFLAGS" -D c_link_args="$LDFLAGS" -D cpp_args="$CPPFLAGS" -D cpp_link_args="$LDFLAGS"
-    ninja -j12 -C build
+    meson build mesa "${_meson_flags[@]}" -D libdir=/usr/lib -D amd-use-llvm=true -D draw-use-llvm=true -D llvm=enabled -D shared-llvm=enabled -D gallium-drivers=radeonsi,virgl,svga,llvmpipe -D vulkan-drivers=amd,swrast,virtio,gfxstream -D gallium-rusticl=true -D gallium-extra-hud=true -D gallium-va=enabled \
+        -D c_args="$CFLAGS" -D c_link_args="$LDFLAGS" -D cpp_args="$CPPFLAGS" -D cpp_link_args="$LDFLAGS" -D lmsensors=enabled
+    ninja -j20 -C build
 
-    meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D llvm=disabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream \
-        -D c_args="-m32 $CFLAGS" -D c_link_args="-m32 $LDFLAGS" -D cpp_args="-m32 $CPPFLAGS" -D  cpp_link_args="-m32 $LDFLAGS"
-    ninja -j12 -C build32
+    meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D llvm=enabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream -D gallium-rusticl=false -D gallium-extra-hud=false -D gallium-va=disabled \
+        -D c_args="-m32 $CFLAGS" -D c_link_args="-m32 $LDFLAGS" -D cpp_args="-m32 $CPPFLAGS" -D  cpp_link_args="-m32 $LDFLAGS" -D lmsensors=disabled
+    ninja -j20 -C build32
 }
 
 package() {
     mkdir -p "$pkgdir/usr/bin" "$pkgdir/usr/lib" "$pkgdir/usr/lib32" "$pkgdir/usr/share"
-    DESTDIR="$pkgdir" ninja -j$(nproc) -C build32 install
     DESTDIR="$pkgdir" ninja -j$(nproc) -C build install
-    ln -s usr/lib32/libGLX_mesa.so.0 "$pkgdir/usr/lib32/libGLX_indirect.so.0"
     ln -s usr/lib/libGLX_mesa.so.0 "$pkgdir/usr/lib/libGLX_indirect.so.0"
+    DESTDIR="$pkgdir" ninja -j$(nproc) -C build32 install
+    ln -s usr/lib32/libGLX_mesa.so.0 "$pkgdir/usr/lib32/libGLX_indirect.so.0"
 }

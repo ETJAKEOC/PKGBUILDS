@@ -1,16 +1,15 @@
 pkgbase=linux-tools
 pkgname=('bootconfig' 'bpf' 'cpupower' 'linux-tools-meta' 'tmon' 'turbostat' 'usbip' 'x86_energy_perf_policy' 'intel-speed-select')
 #pkgname=('bootconfig' 'bpf' 'cpupower' 'hyperv' 'linux-tools-meta' 'perf' 'tmon' 'turbostat' 'usbip' 'x86_energy_perf_policy' 'intel-speed-select')
-pkgver=6.19.0
+pkgver=6.19.8
 #rc=rc4
 pkgrel=420
 license=('GPL-2.0-only')
 arch=('x86_64')
 url='https://www.kernel.org'
 options=('!strip')
-makedepends=('git' 'asciidoc' 'xmlto' 'perl' 'python' 'python-setuptools' 'slang' 'elfutils' 'libunwind' 'numactl' 'audit' 'zstd' 'libcap'
-	'libtraceevent' 'openssl' 'clang' 'llvm-libs' 'libpfm' 'pciutils' 'glib2' 'sysfsutils' 'udev' 'ncurses' 'readline' 'zlib' 'libelf'
-	'libcap' 'python-docutils' 'libcap' 'llvm' 'clang' 'libnl')
+makedepends=('git' 'asciidoc' 'xmlto' 'perl' 'python' 'python-setuptools' 'slang' 'elfutils' 'libunwind' 'numactl' 'audit' 'zstd'
+	'libtraceevent' 'openssl' 'libpfm' 'pciutils' 'glib2' 'sysfsutils' 'udev' 'ncurses' 'readline' 'zlib' 'libelf' 'libcap' 'python-docutils' 'libcap' 'libnl')
 groups=("$pkgbase")
 #source=("https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-${pkgver}-${rc}.tar.gz"
 source=("https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${pkgver}.tar.xz"
@@ -36,6 +35,7 @@ EOF
 }
 
 build() {
+  source /etc/environment.kern
   echo ':: perf'
   pushd linux/tools/perf
     make -f Makefile.perf prefix=/usr lib=lib/perf perfexecdir=lib/perf WERROR=0 NO_SDT=1 \

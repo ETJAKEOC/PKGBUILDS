@@ -1,0 +1,28 @@
+pkgname=gguf-model-list
+pkgver=1.0.0
+pkgrel=1
+arch=('any')
+url='https://github.com/mitjafelicijan/gguf-list'
+license=('MIT') # adjust if different
+depends=('python')
+source=("${pkgname}::git+https://github.com/mitjafelicijan/gguf-list.git")
+sha256sums=('SKIP')
+
+package() {
+  cd "$srcdir/$pkgname"
+
+  # Scripts → /usr/bin
+  install -Dm755 generate.py     "$pkgdir/usr/bin/gguf-generate"
+  install -Dm755 fetchdata.py    "$pkgdir/usr/bin/gguf-fetchdata"
+  install -Dm755 ggufdlprep.py   "$pkgdir/usr/bin/gguf-dlprep"
+  install -Dm755 ggufdl.sh       "$pkgdir/usr/bin/gguf-dl"
+
+  # Data files → /usr/share
+  install -d "$pkgdir/usr/share/gguf-model-list"
+
+  install -Dm644 collections.json \
+                  collections.html \
+                  template.html \
+                  dialog-data.txt \
+                  "$pkgdir/usr/share/gguf-model-list/"
+}

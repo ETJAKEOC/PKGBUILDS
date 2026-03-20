@@ -1,6 +1,6 @@
 _basename=ffmpegthumbs
 pkgname="${_basename}-git"
-pkgver=25.12.2.r0.gf3be523
+pkgver=25.12.2.r2.g405ee80
 #pkgver=25.12.2.r58.g8eb38b1
 pkgrel=1
 pkgdesc='KDE Thumbnailer based on FFmpeg (git build)'

@@ -1,0 +1,58 @@
+pkgname=sdnext-git
+pkgver=r$(date +%Y%m%d)
+pkgrel=1
+pkgdesc="sd.next - next-gen stable diffusion (VladMandic fork) (git)"
+url="https://github.com/vladmandic/sdnext"
+license=("MIT")
+arch=("x86_64")
+depends=("python" "python-pillow" "python-numpy" "python-typing_extensions" "vulkan-icd-loader")
+makedepends=("git" "python-pip" "python-setuptools" "python-wheel")
+provides=("sdnext")
+conflicts=("sdnext")
+source=("git+https://github.com/vladmandic/sdnext.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  echo "r$(date +%Y%m%d)"
+}
+
+prepare() {
+  cd "$srcdir/sdnext"
+  git submodule update --init --recursive
+}
+
+build() {
+  cd "$srcdir/sdnext"
+
+  # create vendor dir
+  mkdir -p build/vendor
+  python3 -m pip install \
+      --prefix="$srcdir/sdnext/build/vendor" \
+      --upgrade pip
+
+  # install ALL Python deps into build/vendor
+  python3 -m pip install \
+      --prefix="$srcdir/sdnext/build/vendor" \
+      .[all]
+}
+
+package() {
+  cd "$srcdir/sdnext"
+
+  # install python tree
+  install -dm755 "$pkgdir/usr/lib/python3.11/sdnext"
+  cp -a build/vendor/lib/python3.11/site-packages/* \
+        "$pkgdir/usr/lib/python3.11/"
+
+  # wrapper script
+  install -dm755 "$pkgdir/usr/bin"
+  cat > "$pkgdir/usr/bin/sdnext" << 'EOF'
+#!/bin/bash
+export PYTHONPATH=/usr/lib/python3.11
+exec python3 -m sdnext "$@"
+EOF
+  chmod +x "$pkgdir/usr/bin/sdnext"
+
+  # license
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

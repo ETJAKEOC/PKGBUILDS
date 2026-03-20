@@ -1,0 +1,54 @@
+pkgname=binwalk-git
+_gitname=binwalk
+pkgver=3.1.0.r274.ga417b4d
+pkgrel=1
+pkgdesc='Tool for searching a given binary image for embedded files'
+url='https://github.com/ReFirmLabs/binwalk'
+arch=(any)
+license=(MIT)
+depends=(python python-setuptools)
+makedepends=(cargo rustup git)
+optdepends=(
+  'python-pyqtgraph: graph and visualization support'
+  'python-opengl: binviz module support'
+  'python-capstone: disassembly support'
+  'arj: ARJ decompression support'
+  'cabextract: CAB archive support'
+  'cpio: CPIO archvie support'
+  'gzip: GZIP decompression support'
+  'mtd-utils: JFFS filesystem support'
+  'p7zip: ZIP, LZMA and ISO decompression support'
+  'squashfs-tools: squashfs support'
+  'tar: TAR archive support'
+  'bzip2: BZIP2 archive support'
+  'unrar: RAR decompression support'
+  'xz: XZ decompression support'
+  'firmware-mod-kit: cramfs support'
+  'lhasa: LHA support'
+  'sleuthkit: forensic analysis support'
+)
+provides=('binwalk')
+conflicts=("binwalk")
+source=(${pkgname}::git+${url})
+sha512sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
+
+pkgver() {
+  cd ${pkgname}
+  git describe --tags --match 'v*' | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+prepare() {
+  cd ${pkgname}
+  cargo update
+}
+
+build() {
+  cd ${pkgname}
+  cargo build --release
+}
+
+package() {
+  cd "$pkgname"
+  cargo install --path . --root "$pkgdir/usr" --locked
+}

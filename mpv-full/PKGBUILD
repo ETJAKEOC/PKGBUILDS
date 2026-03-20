@@ -1,11 +1,11 @@
 pkgname=mpv-full
-pkgver=0.41.0.174.g76a5eba991
+pkgver=0.41.0.339.g7b1ee864b8
 pkgrel=1
 pkgdesc='A free, open source, and cross-platform media player (with all possible libs)'
 arch=('x86_64')
 license=('GPL-2.0-or-later')
 url='https://mpv.io/'
-depends=('alsa-lib' 'ffmpeg' 'gcc-libs' 'glibc' 'hicolor-icon-theme' 'jack' 'lcms2' 'libarchive' 'libass' 'libbluray' 'libcaca' 'libcdio' 'libcdio-paranoia' 'libdisplay-info' 'libdrm' 'libdvdnav' 'libgl' 'libjpeg' 'libpipewire' 'libplacebo' 'libpulse' 'libsixel' 'libva' 'libvdpau' 'libx11' 'libxext' 'libxkbcommon' 'libxpresent' 'libxrandr' 'libxss' 'libxv' 'lua52' 'mesa' 'mujs' 'openal' 'rubberband' 'sdl2-compat' 'sh' 'sndio' 'uchardet' 'vapoursynth' 'vulkan-icd-loader' 'wayland' 'zimg' 'zlib')
+depends=('alsa-lib' 'ffmpeg' 'gcc-libs' 'glibc' 'hicolor-icon-theme' 'jack' 'lcms2' 'libarchive' 'libbluray' 'libcaca' 'libcdio' 'libcdio-paranoia' 'libdisplay-info' 'libdrm' 'libdvdnav' 'libgl' 'libjpeg' 'libpipewire' 'libpulse' 'libsixel' 'libva' 'libvdpau' 'libx11' 'libxext' 'libxkbcommon' 'libxpresent' 'libxrandr' 'libxss' 'libxv' 'lua52' 'mesa' 'mujs' 'openal' 'rubberband' 'sdl2-compat' 'sh' 'sndio' 'uchardet' 'vapoursynth' 'vulkan-icd-loader' 'wayland' 'zimg' 'zlib')
 makedepends=('ffnvcodec-headers' 'git' 'ladspa' 'meson' 'python-docutils' 'vulkan-headers' 'wayland-protocols' 'python-pyqt6' 'python-pyqtgraph')
 optdepends=(
     'nvidia-utils: for hardware accelerated video decoding with CUDA'
@@ -16,7 +16,7 @@ optdepends=(
     'yt-dlp: for video-sharing websites playback')
 provides=('mpv')
 conflicts=('mpv')
-options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' '!buildflags' '!lto' '!makeflags' 'strip')
 source=("git+https://github.com/mpv-player/mpv.git")
 sha256sums=('SKIP')
 
@@ -26,8 +26,25 @@ pkgver() {
 }
 
 prepare() {
-  cd "$srcdir/mpv"
-  git submodule update --init --recursive
+    cd "$srcdir/mpv"
+    git submodule update --init --recursive
+
+    # Fixes for libplacebo-7.360
+    # Map removed color systems
+    sed -i \
+      -e 's/PL_COLOR_SYSTEM_YCGCO_RE/PL_COLOR_SYSTEM_YCGCO/g' \
+      -e 's/PL_COLOR_SYSTEM_YCGCO_RO/PL_COLOR_SYSTEM_YCGCO/g' \
+    video/csputils.c video/mp_image.c
+
+    # Replace alpha helper with chroma hack
+    sed -i 's/pl_alpha_from_av/pl_chroma_from_av/g' video/mp_image.c
+
+    # Remove removed blur calls
+    sed -i 's/PL_CLEAR_BLUR/PL_CLEAR_COLOR/g' video/out/vo_gpu_next.c
+    sed -i '/pars->params.blur_radius/d' video/out/vo_gpu_next.c
+
+    # Remove alpha_bits
+    sed -i '/\.alpha_bits/d' video/out/vulkan/context.c
 }
 
 build() {
@@ -44,122 +61,128 @@ build() {
     export OBJDUMP=llvm-objdump
     export READELF=llvm-readelf
     export RANLIB=llvm-ranlib
-    export CPPFLAGS="$CPPFLAGS"
-    export CFLAGS="$CMFLAGS"
-    export CXXFLAGS="$CXXFLAGS"
-    export LDFLAGS="$LDFLAGS"
+    export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
+    export CFLAGS="$CPPFLAGS -fPIC -flto=thin"
+    export CXXFLAGS="$CFLAGS"
+    export LDFLAGS="-fuse-ld=lld -O3 -flto=thin"
 
-    meson "$srcdir/mpv" "$srcdir/build" -Dprefix=/usr -Dlibdir=/usr/lib \
-        --optimization 3 \
-        -Db_pie=true \
-        -Db_staticpic=true \
-        -Db_lto=true \
-        -Dpython.bytecompile=2 \
-        -Dbackend=ninja \
-        -Db_colorout=always \
-        -Dc_compiler="$CC" \
-        -Dc_args="$CFLAGS" \
-        -Dc_link_args="$LDFLAGS" \
-        -Dcpp_args="$CPPFLAGS" \
-        -Dcpp_link_args="$LDFLAGS" \
-        -Dspirv-cross=disabled \
-        -Dgpl=true \
-        -Dcplayer=true \
-        -Dlibmpv=true \
-        -Dbuild-date=false \
-        -Dtests=false \
-        -Dfuzzers=false \
-        -Damf=disabled \
-        -Dcdda=enabled \
-        -Dcplugins=enabled \
-        -Ddvbin=enabled \
-        -Ddvdnav=enabled \
-        -Diconv=enabled \
-        -Djavascript=enabled \
-        -Dlcms2=enabled \
-        -Dlibarchive=enabled \
-        -Dlibbluray=enabled \
-        -Dlua=luajit \
-        -Daudiotrack=disabled \
-        -Dpthread-debug=disabled \
-        -Drubberband=enabled \
-        -Dshaderc=disabled \
-        -Duchardet=enabled \
-        -Duwp=disabled \
-        -Dvapoursynth=enabled \
-        -Dvector=enabled \
-        -Dwin32-threads=disabled \
-        -Dzimg=enabled \
-        -Dzlib=enabled \
-        -Dalsa=enabled \
-        -Dpipewire=enabled \
-        -Dpulse=enabled \
-        -Dopenal=enabled \
-        -Dsdl2-audio=enabled \
-        -Dsndio=enabled \
-        -Djack=disabled \
-        -Daaudio=disabled \
-        -Daudiounit=disabled \
-        -Dcoreaudio=disabled \
-        -Davfoundation=disabled \
-        -Dopensles=disabled \
-        -Doss-audio=disabled \
-        -Dwasapi=disabled \
-        -Dcaca=enabled \
-        -Ddrm=enabled \
-        -Dgbm=enabled \
-        -Degl=enabled \
-        -Degl-drm=enabled \
-        -Degl-wayland=enabled \
-        -Degl-x11=enabled \
-        -Dgl=enabled \
-        -Dgl-x11=enabled \
-        -Dplain-gl=enabled \
-        -Dx11=enabled \
-        -Dxv=enabled \
-        -Dsdl2-video=enabled \
-        -Ddmabuf-wayland=enabled \
-        -Dcocoa=disabled \
-        -Dd3d11=disabled \
-        -Ddirect3d=disabled \
-        -Dandroid-media-ndk=disabled \
-        -Degl-android=disabled \
-        -Degl-angle=disabled \
-        -Degl-angle-lib=disabled \
-        -Degl-angle-win32=disabled \
-        -Dgl-cocoa=disabled \
-        -Dgl-dxinterop=disabled \
-        -Dgl-win32=disabled \
-        -Dvaapi-win32=disabled \
-        -Dsubrandr=disabled \
-        -Dvdpau=enabled \
-        -Dvdpau-gl-x11=enabled \
-        -Dvaapi=enabled \
-        -Dvaapi-drm=enabled \
-        -Dvaapi-wayland=enabled \
-        -Dvaapi-x11=enabled \
-        -Dvulkan=enabled \
-        -Dcuda-hwaccel=disabled \
-        -Dcuda-interop=disabled \
-        -Dd3d-hwaccel=disabled \
-        -Dd3d9-hwaccel=disabled \
-        -Dgl-dxinterop-d3d9=disabled \
-        -Dios-gl=disabled \
-        -Dvideotoolbox-gl=disabled \
-        -Dvideotoolbox-pl=disabled \
-        -Dhtml-build=disabled \
-        -Dmanpage-build=enabled \
-        -Dpdf-build=disabled \
-        -Dmacos-10-15-4-features=disabled \
-        -Dmacos-11-features=disabled \
-        -Dmacos-11-3-features=disabled \
-        -Dmacos-12-features=disabled \
-        -Dmacos-cocoa-cb=disabled \
-        -Dmacos-media-player=disabled \
-        -Dmacos-touchbar=disabled \
-        -Dswift-build=disabled \
+    _mf=(
+        -Dprefix=/usr
+        -Dlibdir=/usr/lib
+        --optimization 3
+        -Db_pie=true
+        -Db_staticpic=true
+        -Db_lto=true
+        -Dpython.bytecompile=2
+        -Dbackend=ninja
+        -Db_colorout=always
+        -Dc_compiler="$CC"
+        -Dc_args="$CFLAGS"
+        -Dc_link_args="$LDFLAGS"
+        -Dcpp_args="$CPPFLAGS"
+        -Dcpp_link_args="$LDFLAGS"
+	-Db_ndebug=true
+        -Dspirv-cross=disabled
+        -Dgpl=true
+        -Dcplayer=true
+        -Dlibmpv=true
+        -Dbuild-date=false
+        -Dtests=false
+        -Dfuzzers=false
+        -Damf=disabled
+        -Dcdda=enabled
+        -Dcplugins=enabled
+        -Ddvbin=enabled
+        -Ddvdnav=enabled
+        -Diconv=enabled
+        -Djavascript=enabled
+        -Dlcms2=enabled
+        -Dlibarchive=enabled
+        -Dlibbluray=enabled
+        -Dlua=luajit
+        -Daudiotrack=disabled
+        -Dpthread-debug=disabled
+        -Drubberband=enabled
+        -Dshaderc=disabled
+        -Duchardet=enabled
+        -Duwp=disabled
+        -Dvapoursynth=enabled
+        -Dvector=enabled
+        -Dwin32-threads=disabled
+        -Dzimg=enabled
+        -Dzlib=enabled
+        -Dalsa=enabled
+        -Dpipewire=enabled
+        -Dpulse=enabled
+        -Dopenal=enabled
+        -Dsdl2-audio=enabled
+        -Dsndio=enabled
+        -Djack=disabled
+        -Daaudio=disabled
+        -Daudiounit=disabled
+        -Dcoreaudio=disabled
+        -Davfoundation=disabled
+        -Dopensles=disabled
+        -Doss-audio=disabled
+        -Dwasapi=disabled
+        -Dcaca=enabled
+        -Ddrm=enabled
+        -Dgbm=enabled
+        -Degl=enabled
+        -Degl-drm=enabled
+        -Degl-wayland=enabled
+        -Degl-x11=enabled
+        -Dgl=enabled
+        -Dgl-x11=enabled
+        -Dplain-gl=enabled
+        -Dx11=enabled
+        -Dxv=enabled
+        -Dsdl2-video=enabled
+        -Ddmabuf-wayland=enabled
+        -Dcocoa=disabled
+        -Dd3d11=disabled
+        -Ddirect3d=disabled
+        -Dandroid-media-ndk=disabled
+        -Degl-android=disabled
+        -Degl-angle=disabled
+        -Degl-angle-lib=disabled
+        -Degl-angle-win32=disabled
+        -Dgl-cocoa=disabled
+        -Dgl-dxinterop=disabled
+        -Dgl-win32=disabled
+        -Dvaapi-win32=disabled
+        -Dsubrandr=disabled
+        -Dvdpau=enabled
+        -Dvdpau-gl-x11=enabled
+        -Dvaapi=enabled
+        -Dvaapi-drm=enabled
+        -Dvaapi-wayland=enabled
+        -Dvaapi-x11=enabled
+        -Dvulkan=enabled
+        -Dcuda-hwaccel=disabled
+        -Dcuda-interop=disabled
+        -Dd3d-hwaccel=disabled
+        -Dd3d9-hwaccel=disabled
+        -Dgl-dxinterop-d3d9=disabled
+        -Dios-gl=disabled
+        -Dvideotoolbox-gl=disabled
+        -Dvideotoolbox-pl=disabled
+        -Dhtml-build=disabled
+        -Dmanpage-build=enabled
+        -Dpdf-build=disabled
+        -Dmacos-10-15-4-features=disabled
+        -Dmacos-11-features=disabled
+        -Dmacos-11-3-features=disabled
+        -Dmacos-12-features=disabled
+        -Dmacos-cocoa-cb=disabled
+        -Dmacos-media-player=disabled
+        -Dmacos-touchbar=disabled
+        -Dswift-build=disabled
         -Dswift-flags=disabled
-    ninja -C "$srcdir/build"
+    )
+
+    meson "$srcdir/mpv" "$srcdir/build" "${_mf[@]}"
+    ninja -C "$srcdir/build" -j$(nproc)
 }
 
 package() {
