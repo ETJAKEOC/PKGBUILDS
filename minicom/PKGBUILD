@@ -1,0 +1,28 @@
+pkgname=minicom
+pkgver=2.11.1
+pkgrel=1
+pkgdesc='A serial communication program'
+arch=('x86_64')
+url='https://salsa.debian.org/minicom-team/minicom'
+license=('GPL-2.0-or-later')
+depends=('bash')
+optdepends=('lrzsz: for xmodem, ymodem and zmodem file transfer protocols')
+backup=('etc/minirc.dfl')
+source=("git+https://github.com/Distrotech/minicom.git")
+sha256sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' 'buildflags' '!lto' 'makeflags' 'strip')
+
+build() {
+  cd "${pkgname}"
+  ./configure --prefix=/usr \
+              --sysconfdir=/etc \
+	      CC="$CC" CFLAGS="$CFLAGS -fcommon" LDFLAGS="$LDFLAGS" CPP="$CPP" CPPFLAGS="$CPPFLAGS" CXX="$CXX" CXXFLAGS="$CXXFLAGS -fcommon"
+  make
+}
+
+package() {
+  cd "${pkgname}"
+
+  make DESTDIR="${pkgdir}/" install
+  install -Dm644 doc/minirc.dfl ${pkgdir}/etc/minirc.dfl
+}

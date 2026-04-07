@@ -10,7 +10,7 @@ makedepends=(clang ffnvcodec-headers frei0r-plugins git ladspa mesa nasm opencl-
 provides=(libavcodec.so libavdevice.so libavfilter.so libavformat.so libavutil.so libswresample.so libswscale.so)
 source=(git+"https://git.ffmpeg.org/ffmpeg.git")
 b2sums=('SKIP')
-options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!strip' '!ccache' '!buildflags' '!lto' '!makeflags')
+options=('!debug' '!docs' '!emptydirs' 'staticlibs' '!strip' '!ccache' '!buildflags' '!lto' '!makeflags')
 
 pkgver() {
   cd "${pkgname}"
@@ -34,43 +34,21 @@ build() {
   export READELF=llvm-readelf
   export RANLIB=llvm-ranlib
 
-  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0"
-  export CFLAGS="$CPPFLAGS -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition"
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -Wno-error"
+  export CFLAGS="$CPPFLAGS -flto=thin -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition -fcommon"
   export CXXFLAGS="$CFLAGS"
-  export LDFLAGS="-fuse-ld=lld -O3 -Wl,--allow-shlib-undefined"
+  export LDFLAGS="-flto=thin -fuse-ld=lld -O3 -Wl,--allow-shlib-undefined"
 
   export PKG_CONFIG_PATH='/usr/lib/mbedtls2/pkgconfig:$PKG_CONFIG_PATH'
 
   ./configure \
-    --cpu=znver2 \
-    --cc="$CC" \
-    --cxx="$CXX" \
-    --extra-cflags="$CFLAGS" \
-    --extra-cxxflags="$CXXFLAGS" \
-    --extra-ldflags="$LDFLAGS" \
     --prefix=/usr \
-    --disable-debug \
-    --disable-htmlpages \
-    --disable-podpages \
-    --disable-txtpages \
-    --disable-static \
-    --disable-stripping \
-    --disable-small \
-    --disable-amf \
-    --disable-avisynth \
-    --disable-cuda-llvm \
-    --disable-libgsm \
-    --disable-libiec61883 \
-    --disable-libjack \
-    --disable-libmodplug \
-    --disable-libopencore_amrnb \
-    --disable-libopencore_amrwb \
-    --disable-libpulse \
-    --disable-librsvg \
-    --disable-libvpl \
-    --disable-libzmq \
-    --disable-nvdec \
-    --disable-nvenc \
+    --cpu=znver2 --cc="$CC" --cxx="$CXX" --extra-cflags="$CFLAGS" --extra-cxxflags="$CXXFLAGS" --extra-ldflags="$LDFLAGS" \
+    --disable-debug --disable-htmlpages --disable-podpages --disable-txtpages --disable-small --disable-amf --disable-avisynth \
+    --disable-cuda-llvm --disable-libgsm --disable-libiec61883 --disable-libjack --disable-libmodplug --disable-libopencore_amrnb \
+    --disable-libopencore_amrwb --disable-libpulse --disable-librsvg --disable-libvpl --disable-libzmq --disable-nvdec --disable-nvenc \
+    --enable-stripping \
+    --enable-static \
     --enable-libplacebo \
     --enable-pthreads \
     --enable-fontconfig \

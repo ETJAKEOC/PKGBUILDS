@@ -32,7 +32,7 @@ prepare() {
 # -------------------------------
 # Stage Flags (shared)
 # -------------------------------
-_cflags="-O2 -fPIC -pipe -g1 -Wno-error -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS"
+_cflags="-O2 -fPIC -pipe -g1 -fcommon -Wno-error -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS"
 _triple="x86_64-pc-linux-gnu"
 # -------------------------------
 _flags=(
@@ -72,7 +72,7 @@ _flags=(
   -DCMAKE_C_FLAGS_RELWITHDEBINFO=""
   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=""
 
-  -DLLVM_ENABLE_LTO=OFF
+  -DLLVM_ENABLE_LTO=Thin
   -DLLVM_PARALLEL_COMPILE_JOBS=$(nproc)
   -DLLVM_PARALLEL_LINK_JOBS=$(($(nproc) / 2))
 

@@ -25,4 +25,4 @@ export ELECTRON_IS_DEV
 : ${ELECTRON_FORCE_IS_PACKAGED:=true}
 export ELECTRON_FORCE_IS_PACKAGED
 
-exec /usr/lib/${name}/electron "${flags[@]}" "$@"
+exec taskset -c 0-5,12-17 /usr/lib/${name}/electron "${flags[@]}" "$@"

@@ -17,17 +17,17 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
             'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' '!lto' 'makeflags' 'strip')
 source=(
-  "git+https://github.com/electron/electron.git"
-  https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
+  makepkg-source-roller.py
+  electron-launcher.sh
   chromium-138-nodejs-version-check.patch
   chromium-138-rust-1.86-mismatched_lifetime_syntaxes.patch
   compiler-rt-adjust-paths.patch
   increase-fortify-level.patch
   chromium-141-cssstylesheet-iwyu.patch
-  electron-launcher.sh
   jinja-python-3.10.patch
   use-system-libraries-in-node.patch
-  makepkg-source-roller.py
+  "git+https://github.com/electron/electron.git"
+  https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
   chromium-mirror::git+https://github.com/chromium/chromium.git
   chromium-mirror_third_party_nan::git+https://github.com/nodejs/nan.git
   chromium-mirror_third_party_electron_node::git+https://github.com/nodejs/node.git
@@ -67,8 +67,8 @@ source=(
   chromium-mirror_third_party_farmhash_src::git+https://chromium.googlesource.com/external/github.com/google/farmhash.git
   chromium-mirror_third_party_fast_float_src::git+https://chromium.googlesource.com/external/github.com/fastfloat/fast_float.git
   chromium-mirror_third_party_ffmpeg::git+https://chromium.googlesource.com/chromium/third_party/ffmpeg.git
-  chromium-mirror_third_party_freetype_src::git+https://chromium.googlesource.com/chromium/src/third_party/freetype2.git
-  chromium-mirror_third_party_harfbuzz-ng_src::git+https://chromium.googlesource.com/external/github.com/harfbuzz/harfbuzz.git
+  chromium-mirror_third_party_freetype_src::git+https://chromium.googlesource.com/chromium/third_party/freetype2.git
+  chromium-mirror_third_party_harfbuzz-ng_src::git+https://chromium.googlesource.com/chromium/third_party/harfbuzz-ng.git
   chromium-mirror_third_party_icu::git+https://chromium.googlesource.com/chromium/deps/icu.git
   chromium-mirror_third_party_jsoncpp_source::git+https://chromium.googlesource.com/external/github.com/open-source-parsers/jsoncpp.git
   chromium-mirror_third_party_leveldatabase_src::git+https://chromium.googlesource.com/external/leveldb.git
@@ -94,27 +94,27 @@ sha256sums=(
 # plus any so names that are provided + linked
 declare -gA _system_libs=(
   [brotli]=brotli
-  # [dav1d]="dav1d libdav1d.so"
-  # [ffmpeg]="ffmpeg libavcodec.so libavcodec.so libavformat.so libavutil.so" # YouTube playback stopped working in Chromium 120
+  [dav1d]="dav1d libdav1d.so"
+  [ffmpeg]="ffmpeg libavcodec.so libavcodec.so libavformat.so libavutil.so" # YouTube playback stopped working in Chromium 120
   [flac]="flac libFLAC.so"
   [fontconfig]="fontconfig libfontconfig.so"
   [freetype]="freetype2 libfreetype.so"
   [harfbuzz-ng]="harfbuzz libharfbuzz.so libharfbuzz-subset.so"
-  # [icu]="icu libicui18n.so libicuuc.so" # disabled because ICU 76 not supported yet
-  # [jsoncpp]="jsoncpp libjsoncpp.so"  # needs libstdc++
-  # [libaom]=aom
-  # [libavif]=libavif # libavif.so libavutil.so # needs -DAVIF_ENABLE_EXPERIMENTAL_GAIN_MAP=ON
+  [icu]="icu libicui18n.so libicuuc.so" # disabled because ICU 76 not supported yet
+  [jsoncpp]="jsoncpp libjsoncpp.so"  # needs libstdc++
+  [libaom]=aom
+  [libavif]=libavif # libavif.so libavutil.so # needs -DAVIF_ENABLE_EXPERIMENTAL_GAIN_MAP=ON
   [libdrm]=libdrm # libdrm.so
   [libjpeg]="libjpeg-turbo libjpeg.so"
   [libpng]="libpng libpng16.so"
-  # [libvpx]=libvpx
-  # [libwebp]="libwebp libwebpdemux.so libwebpmux.so libwebp.so" # //third_party/libavif:libavif_enc needs //third_party/libwebp:libwebp_sharpyuv
+  [libvpx]=libvpx
+  [libwebp]="libwebp libwebpdemux.so libwebpmux.so libwebp.so" # //third_party/libavif:libavif_enc needs //third_party/libwebp:libwebp_sharpyuv
   [libxml]="libxml2 libxml2.so"
   [libxslt]="libxslt libxslt.so"
   [opus]="opus libopus.so"
-  # [re2]="re2 libre2.so" # needs libstdc++
-  # [snappy]=snappy # libsnappy.so # needs libstdc++
-  # [woff2]="woff2 libwoff2dec.so" # needs libstdc++
+  [re2]="re2 libre2.so" # needs libstdc++
+  [snappy]=snappy # libsnappy.so # needs libstdc++
+  [woff2]="woff2 libwoff2dec.so" # needs libstdc++
   [zlib]=minizip # libminizip.so
 )
 _unwanted_bundled_libs=(
@@ -237,6 +237,12 @@ prepare() {
 build() {
   cd src
 
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
+  export LDFLAGS="-fuse-ld=lld -O3"
+  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
+
   local _flags=(
     'custom_toolchain="//build/toolchain/linux/unbundle:default"'
     'host_toolchain="//build/toolchain/linux/unbundle:default"'
@@ -268,7 +274,7 @@ build() {
     'clang_base_path="/usr"'
     'clang_use_chrome_plugins=false'
     "clang_version=\"$_clang_version\""
-    'chrome_pgo_phase=0' # needs newer clang to read the bundled PGO profile
+    'chrome_pgo_phase=1' # needs newer clang to read the bundled PGO profile
   )
 
   # Allow the use of nightly features with stable Rust compiler

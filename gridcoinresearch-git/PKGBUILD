@@ -1,6 +1,6 @@
 pkgbase=gridcoinresearch-git
 pkgname=(gridcoinresearch-qt-git)
-pkgver=5.4.9.0
+pkgver=6d987dea7
 pkgrel=1
 pkgdesc="A cryptocurrency that rewards users for participating on the BOINC network"
 makedepends=('git' 'boost' 'qt5-charts' 'qt5-tools' 'qrencode' 'db')
@@ -15,19 +15,19 @@ source=("git+https://github.com/gridcoin/Gridcoin-Research.git#branch=master")
 
 sha256sums=('SKIP')
 
-#pkgver() {
-#  cd "$srcdir/$_sourcename"
+pkgver() {
+  cd "$srcdir/$_sourcename"
 
-#  printf "%s%s" \
-#    "$(awk '/define\(_CLIENT_VERSION_MAJOR/ || /define\(_CLIENT_VERSION_MINOR/ || /define\(_CLIENT_VERSION_REVISION/ || /define\(_CLIENT_VERSION_BUILD/ { myversion=$NF; sub(""")""","""""",myversion); print myversion }' ORS='.' configure.ac)" \
-#    "$(git rev-parse --short HEAD)"
-#}
+  printf "%s%s" \
+    "$(awk '/define\(_CLIENT_VERSION_MAJOR/ || /define\(_CLIENT_VERSION_MINOR/ || /define\(_CLIENT_VERSION_REVISION/ || /define\(_CLIENT_VERSION_BUILD/ { myversion=$NF; sub(""")""","""""",myversion); print myversion }' ORS='.' configure.ac)" \
+    "$(git rev-parse --short HEAD)"
+}
 
 build() {
   cd "$srcdir/$_sourcename"
   mkdir -p build
   cmake -B build -S . \
-    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.10 \
     -DENABLE_GUI=ON \
     -DENABLE_QRENCODE=ON \
     -DUSE_DBUS=ON \

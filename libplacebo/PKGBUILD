@@ -1,20 +1,14 @@
 pkgname=libplacebo
-pkgver=7.360.0.11.g33b5dfad
+pkgver=7.360.0.14.g54e52755
 pkgrel=1
 pkgdesc='Reusable library for GPU-accelerated video/image rendering primitives'
 url='https://github.com/haasn/libplacebo'
 arch=('x86_64')
 license=('LGPL-2.1-or-later')
-depends=('vulkan-icd-loader' 'glslang' 'lcms2' 'shaderc'
-         'glibc' 'gcc-libs' 'libunwind' 'libdovi' 'xxhash')
-makedepends=(
-  'meson' 'ninja' 'vulkan-headers' 'glad' 'nuklear'
-  'python' 'python-setuptools' 'python-mako' 'python-markupsafe' 'python-jinja'
-  'libglvnd'
-)
+depends=('vulkan-icd-loader' 'glslang' 'lcms2' 'shaderc' 'glibc' 'gcc-libs' 'libunwind' 'libdovi' 'xxhash')
+makedepends=('meson' 'ninja' 'vulkan-headers' 'glad' 'nuklear' 'python' 'python-setuptools' 'python-mako' 'python-markupsafe' 'python-jinja' 'libglvnd')
 provides=('libplacebo.so')
 source=(git+https://code.videolan.org/videolan/libplacebo.git)
-#commit=3188549fba13bbdf3a5a98de2a38c2e71f04e21e)
 sha512sums=('SKIP')
 options=('!debug' '!docs' '!emptydirs' '!staticlibs' 'ccache' 'buildflags' 'lto' 'makeflags' 'strip')
 
@@ -26,12 +20,17 @@ pkgver() {
 prepare() {
   cd "${srcdir}/${pkgname}"
   git submodule update --init --recursive
-  #sed -i 's/ET.parse(xmlfile)/ET.parse(xmlfile).getroot()/' src/vulkan/utils_gen.py
 }
 
 build() {
   cd "${srcdir}/${pkgname}"
-  CXXFLAGS+=" -I/usr/include/glslang"
+
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -Wno-error"
+  export CFLAGS="$CPPFLAGS -flto=thin -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition -fcommon"
+  export CXXFLAGS="$CFLAGS -I/usr/include/glslang"
+  export LDFLAGS="-flto=thin -fuse-ld=lld -O3 -Wl,--allow-shlib-undefined"
+  export LLVM_VERSION="23"
+
   meson "${srcdir}/build" \
     -Dtests=true \
     --reconfigure \
