@@ -14,6 +14,12 @@ options=('!emptydirs')
 
 prepare() {
     cd "${srcdir}"
+    rm main.js package.json "${pkgname}".{sh,desktop,png}
+    cp -a ../main.js ./
+    cp -a ../package.json ./
+    cp -a ../"${pkgname}.sh" ./
+    cp -a ../"${pkgname}.desktop" ./
+    cp -a ../"${pkgname}.png" ./
     source /usr/share/nvm/init-nvm.sh || [[ $? != 1 ]]
     nvm install 24
     nvm use 24
