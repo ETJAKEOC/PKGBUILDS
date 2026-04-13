@@ -1,6 +1,6 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 pkgname=qemu-full-git
-pkgver=10.2.0.r476.gcf3e71d8fc
+pkgver=11.0.0.rc2.r0.gb6a7d06213
 pkgrel=1
 epoch=25
 arch=(x86_64)
@@ -8,41 +8,41 @@ pkgdesc="All-in-one QEMU: every architecture, system emulator, UI, audio backend
 license=(GPL-2.0-or-later LGPL-2.1-or-later)
 url="https://wiki.qemu.org/"
 depends=(
-alsa-lib brltty bzip2 cairo capstone curl cdrtools dtc fuse3 gcc-libs gdk-pixbuf2
-glib2 glusterfs gnutls gtk3 jack libaio libbpf libcacard libcap-ng libepoxy
-libiscsi libnfs libpng libpulse libsasl libseccomp libslirp libssh libusb
-libx11 libxkbcommon lzo mesa meson ncurses ndctl numactl pam pixman python
-python-sphinx python-sphinx_rtd_theme rdma-core sdl2 sdl2_image seabios
-snappy spice-protocol spice systemd usbredir vde2 virglrenderer vte3 xfsprogs zlib zstd
+    alsa-lib brltty bzip2 cairo capstone curl cdrtools dtc fuse3 gcc-libs gdk-pixbuf2
+    glib2 glusterfs gnutls gtk3 jack libaio libbpf libcacard libcap-ng libepoxy
+    libiscsi libnfs libpng libpulse libsasl libseccomp libslirp libssh libusb
+    libx11 libxkbcommon lzo mesa meson ncurses ndctl numactl pam pixman python
+    python-sphinx python-sphinx_rtd_theme rdma-core sdl2 sdl2_image seabios
+    snappy spice-protocol spice systemd usbredir vde2 virglrenderer vte3 xfsprogs zlib zstd
 )
 optdepends=(
-'samba: SMB/CIFS server support'
-'binfmt-support: run foreign binaries transparently'
+    'samba: SMB/CIFS server support'
+    'binfmt-support: run foreign binaries transparently'
 )
 provides=(
-qemu qemu-git qemu-full-git
-qemu-arch-extra-git
-qemu-audio-alsa qemu-audio-dbus qemu-audio-pa qemu-audio-sdl qemu-audio-spice
-qemu-block-iscsi-git qemu-block-gluster-git
-qemu-guest-agent-git
-qemu-hw-display-qxl qemu-hw-display-virtio-gpu-pci-gl qemu-hw-uefi-vars
-qemu-system-arm qemu-system-arm-firmware
-qemu-system-armv7 qemu-system-x86 qemu-system-x86-firmware
-qemu-ui-dbus qemu-ui-gtk qemu-ui-opengl qemu-ui-sdl qemu-ui-spice-app qemu-ui-spice-core
-qemu-user qemu-vhost-user-gpu
+    qemu qemu-git qemu-full-git
+    qemu-arch-extra-git
+    qemu-audio-alsa qemu-audio-dbus qemu-audio-pa qemu-audio-sdl qemu-audio-spice
+    qemu-block-iscsi-git qemu-block-gluster-git
+    qemu-guest-agent-git
+    qemu-hw-display-qxl qemu-hw-display-virtio-gpu-pci-gl qemu-hw-uefi-vars
+    qemu-system-arm qemu-system-arm-firmware
+    qemu-system-armv7 qemu-system-x86 qemu-system-x86-firmware
+    qemu-ui-dbus qemu-ui-gtk qemu-ui-opengl qemu-ui-sdl qemu-ui-spice-app qemu-ui-spice-core
+    qemu-user qemu-vhost-user-gpu
 )
 conflicts=("${provides[@]}")
 
-options=('!debug' 'buildflags' 'ccache' 'lto' 'makeflags' 'strip')
+options=('!debug' '!buildflags' '!ccache' '!lto' '!makeflags' 'strip')
 
 source=(
-git+https://gitlab.com/qemu-project/qemu.git
-qemu-guest-agent.service
-65-kvm.rules
+    git+https://gitlab.com/qemu-project/qemu.git
+    qemu-guest-agent.service
+    65-kvm.rules
 )
 sha256sums=('SKIP'
-'c39bcde4a09165e64419fd2033b3532378bba84d509d39e2d51694d44c1f8d88'
-'a66f0e791b16b03b91049aac61a25950d93e962e1b2ba64a38c6ad7f609b532c')
+    'c39bcde4a09165e64419fd2033b3532378bba84d509d39e2d51694d44c1f8d88'
+    'a66f0e791b16b03b91049aac61a25950d93e962e1b2ba64a38c6ad7f609b532c')
 
 _gitname=qemu
 _corearch=x86_64
@@ -60,6 +60,31 @@ prepare() {
 
 build() {
     cd "$srcdir/${_gitname}/build"
+
+    export CC=clang
+    export CPP=clang-cpp
+    export CXX=clang++
+    export LD=lld
+    export CC_LD=lld
+    export CXX_LD=lld
+    export AR=llvm-ar
+    export NM=llvm-nm
+    export STRIP=llvm-strip
+    export OBJCOPY=llvm-objcopy
+    export OBJDUMP=llvm-objdump
+    export READELF=llvm-readelf
+    export RANLIB=llvm-ranlib
+    export HOSTCC=clang
+    export HOSTCXX=clang++
+    export HOSTAR=llvm-ar
+    export HOSTLD=lld
+
+    export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
+    export CFLAGS="$CPPFLAGS -fPIC -fcommon -flto=thin"
+    export CXXFLAGS="$CFLAGS"
+    export LDFLAGS="-flto=thin -fuse-ld=lld -O3"
+    export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
+
     ../configure \
         --prefix=/usr \
         --sysconfdir=/etc \
@@ -117,10 +142,10 @@ build() {
         --disable-qed \
         --enable-vdi \
         --enable-vvfat \
-	--target-list="aarch64-softmmu,arm-softmmu,i386-softmmu,x86_64-softmmu,riscv32-softmmu,riscv64-softmmu" \
-        --cc=clang --cxx=clang++ --extra-cflags="${CFLAGS}" --extra-ldflags="${LDFLAGS}"
+        --target-list="aarch64-softmmu,arm-softmmu,i386-softmmu,x86_64-softmmu,riscv32-softmmu,riscv64-softmmu" \
+        --cc="${CC}" --cxx="${CXX}" --extra-cflags="${CFLAGS}" --extra-ldflags="${LDFLAGS}"
 
-    make LLVM=1 LLVM_IAS=1 -j$(nproc)
+    make -j$(nproc)
 }
 
 package() {

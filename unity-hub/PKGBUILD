@@ -7,24 +7,29 @@ arch=('x86_64')
 url="https://unity3d.com/get-unity/download"
 license=('custom')
 options=(!strip)
-source=("UnityHub.AppImage::https://public-cdn.cloud.unity3d.com/hub/prod/UnityHub.AppImage")
-sha256sums=('SKIP')
+source=("UnityHub.AppImage::https://public-cdn.cloud.unity3d.com/hub/prod/UnityHub.AppImage" "unityhub.desktop")
+sha256sums=('SKIP' 'SKIP')
 
 prepare() {
   cd "${srcdir}"
-  chmod +x "$srcdir/UnityHub.AppImage"
+  rm UnityHub.AppImage unityhub.desktop
+  cp -a ../UnityHub.AppImage ./UnityHub.AppImage
+  cp -a ../unityhub.desktop ./unityhub.desktop
+  chmod +x "${srcdir}/UnityHub.AppImage"
 }
 
 build() {
-  cd "${srcdir}"
-  ./UnityHub.AppImage --appimage-extract
+  "${srcdir}/UnityHub.AppImage" --appimage-extract
+  rm squashfs-root/locales/{af,bn,de,es-419,fil,he,id,ko,mr,pl,ru,sv,th,vi,am,ca,el,es,fi,hi,it,lt,ms,pt-BR,sk,sw,tr,zh-CN,ar,cs,en-GB,et,fr,hr,ja,lv,nb,pt-PT,sl,ta,uk,zh-TW,bg,da,fa,gu,hu,kn,ml,nl,ro,sr,te,ur}.pak
 }
 
 package() {
   install -d "${pkgdir}/opt/unityhub"
+#  cp -a "${srcdir}/UnityHub.AppImage" "${pkgdir}/opt/unityhub/"
   cp -r "${srcdir}/squashfs-root/." "${pkgdir}/opt/unityhub/"
   install -d "${pkgdir}/usr/bin"
   ln -s /opt/unityhub/AppRun "${pkgdir}/usr/bin/unityhub"
-  install -Dm644 "${srcdir}/squashfs-root/unityhub.desktop" "${pkgdir}/usr/share/applications/unityhub.desktop"
-  cp -r "${pkgdir}/opt/unityhub/usr/share/icons" "${pkgdir}/usr/share/"
+  install -d "${pkgdir}"/usr/share{,/applications}
+  cp -r "${srcdir}/squashfs-root/usr/share/icons" "${pkgdir}/usr/share/"
+  cp "${srcdir}/unityhub.desktop" "${pkgdir}/usr/share/applications/unityhub.desktop"
 }

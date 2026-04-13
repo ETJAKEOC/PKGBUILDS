@@ -1,0 +1,19 @@
+{
+  "name": "everycircuit",
+  "version": "1.0.0",
+  "description": "Standalone Electron-based circuit simulator.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "ETJAKEOC",
+  "license": "GPL",
+  "type": "commonjs",
+  "dependencies": {
+    "electron": "^30.0.0"
+  },
+  "devDependencies": {
+    "asar": "^3.2.0"
+  }
+}

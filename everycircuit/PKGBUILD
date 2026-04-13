@@ -7,23 +7,27 @@ arch=('x86_64')
 url="https://everycircuit.com/"
 license=('GPL')
 depends=('electron')
-makedepends=('nodejs' 'npm')
-source=(app.tar.gz $pkgname.sh $pkgname.desktop $pkgname.png)
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
-options=('strip' 'lto' '!emptydirs')
+makedepends=('asar')
+source=(main.js package.json $pkgname.sh $pkgname.desktop $pkgname.png)
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+options=('!emptydirs')
+
+prepare() {
+    cd "${srcdir}"
+    source /usr/share/nvm/init-nvm.sh || [[ $? != 1 ]]
+    nvm install 24
+    nvm use 24
+}
 
 build() {
-    cd "$srcdir"
-    tar xzf app.tar.gz
-    cd app
-    npm install --production
-    npx asar pack . "$srcdir/app.asar"
+    cd "${srcdir}"
+    asar pack . "${srcdir}/app.asar"
 }
 
 package() {
-    install -Dm644 "$srcdir/app.asar" "$pkgdir/opt/$pkgname/app.asar"
-    install -Dm755 "$srcdir/$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
-    install -Dm644 "$srcdir/$pkgname.desktop" "$pkgdir/usr/share/applications/$pkgname.desktop"
-    install -Dm644 "$srcdir/$pkgname.png" "$pkgdir/usr/share/pixmaps/$pkgname.png"
-    chmod +x "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 "${srcdir}/app.asar" "${pkgdir}/opt/$pkgname/app.asar"
+    install -Dm755 "${srcdir}/$pkgname.sh" "${pkgdir}/usr/bin/$pkgname"
+    install -Dm644 "${srcdir}/$pkgname.desktop" "${pkgdir}/usr/share/applications/$pkgname.desktop"
+    install -Dm644 "${srcdir}/$pkgname.png" "${pkgdir}/usr/share/pixmaps/$pkgname.png"
+    chmod +x "${pkgdir}/usr/bin/$pkgname"
 }
