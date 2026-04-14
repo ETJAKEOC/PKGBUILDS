@@ -1,0 +1,41 @@
+# Maintainer: noureddinex
+pkgname=lmstudio-bin
+pkgver=0.4.11
+pkgrel=1
+_pkgver=${pkgver}-${pkgrel}
+pkgdesc="LM Studio - A desktop app for exploring and running large language models locally"
+arch=('x86_64')
+url="https://lmstudio.ai"
+license=('EULA')
+depends=('fuse2' 'zlib' 'hicolor-icon-theme' 'gtk3' 'nss' 'libxcrypt-compat')
+options=('!strip')
+provides=(lmstudio)
+conflicts=(lmstudio)
+source=("${pkgname}.AppImage"::"https://installers.lmstudio.ai/linux/x64/${_pkgver}/LM-Studio-${_pkgver}-x64.AppImage")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "${srcdir}"
+  chmod +x "${pkgname}.AppImage"
+  "./${pkgname}.AppImage" --appimage-extract
+}
+
+package() {
+  # Install extracted AppImage
+  mkdir -p "${pkgdir}/opt/lm-studio"
+  cp -a "${srcdir}/squashfs-root/." "${pkgdir}/opt/lm-studio/"
+
+  # Install static icon
+  mkdir -p "${pkgdir}/usr/share/icons/hicolor/512x512/apps/"
+  mkdir -p "${pkgdir}/usr/share/pixmaps"
+  install -Dm644 "${srcdir}/squashfs-root/usr/share/icons/hicolor/0x0/apps/lm-studio.png" "${pkgdir}/usr/share/icons/hicolor/512x512/apps/lmstudio-bin.png"
+  install -Dm644 "${srcdir}/squashfs-root/usr/share/icons/hicolor/0x0/apps/lm-studio.png" "${pkgdir}/usr/share/pixmaps/lmstudio-bin.png"
+
+  # Desktop entry
+  mkdir -p "${pkgdir}/usr/share/applications"
+  install -Dm644 "${srcdir}/squashfs-root/lm-studio.desktop" "${pkgdir}/usr/share/applications/lm-studio.desktop"
+
+  # Symlink to binary
+  mkdir -p "${pkgdir}/usr/bin"
+  ln -s /opt/lm-studio/lm-studio "${pkgdir}/usr/bin/lm-studio"
+}
