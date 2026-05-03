@@ -13,7 +13,6 @@ options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' 'buildflags' 'lto
 
 prepare() {
   sed -i 's/`hostname`/archlinux/' boinc/generate_svn_version.sh
-  cp -a boinc{,-nox}
   cd boinc
   ./_autosetup
 }
@@ -42,13 +41,25 @@ build() {
   export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
   export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
   export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon -ffat-lto-objects"
-  export LDFLAGS="-fuse-ld=lld -O3 -lX11"
+  export LDFLAGS="-fuse-ld=lld -O3"
   export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
 
   cd "$srcdir"/boinc
   ./configure \
+    CC="$CC" \
+    CXX="$CXX" \
+    OBJCXX="$CXX" \
+    CPP="$CPP" \
+    CFLAGS="$CFLAGS" \
+    CXXFLAGS="$CXXFLAGS" \
+    OBJCXXFLAGS="$CXXFLAGS" \
+    CPPCFLAGS="$CPPFLAGS" \
+    LDFLAGS="$LDFLAGS" \
     --prefix=/usr \
     --sysconfdir=/etc \
+    --enable-year2038 \
+    --enable-cxx-stdlib \
+    --enable-optimize \
     --enable-libraries \
     --enable-unicode \
     --enable-shared \
@@ -58,7 +69,6 @@ build() {
     --disable-static \
     --disable-server \
     --with-ssl \
-    --with-x \
     --with-wxdir=/usr/lib \
     --with-wx-config=$(which wx-config)
   make
