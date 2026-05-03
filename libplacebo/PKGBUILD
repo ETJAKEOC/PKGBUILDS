@@ -1,5 +1,5 @@
 pkgname=libplacebo
-pkgver=7.360.0.14.g54e52755
+pkgver=7.360.0.16.g409c9a82
 pkgrel=1
 pkgdesc='Reusable library for GPU-accelerated video/image rendering primitives'
 url='https://github.com/haasn/libplacebo'
@@ -26,7 +26,7 @@ build() {
   cd "${srcdir}/${pkgname}"
 
   export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -Wno-error"
-  export CFLAGS="$CPPFLAGS -flto=thin -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition -fcommon"
+  export CFLAGS="$CPPFLAGS -flto=thin -fcommon"
   export CXXFLAGS="$CFLAGS -I/usr/include/glslang"
   export LDFLAGS="-flto=thin -fuse-ld=lld -O3 -Wl,--allow-shlib-undefined"
   export LLVM_VERSION="23"

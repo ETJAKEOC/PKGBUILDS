@@ -35,7 +35,7 @@ build() {
   export RANLIB=llvm-ranlib
 
   export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -Wno-error"
-  export CFLAGS="$CPPFLAGS -flto=thin -fomit-frame-pointer -fno-math-errno -fno-semantic-interposition -fcommon"
+  export CFLAGS="$CPPFLAGS -flto=thin -fcommon"
   export CXXFLAGS="$CFLAGS"
   export LDFLAGS="-flto=thin -fuse-ld=lld -O3 -Wl,--allow-shlib-undefined"
 
@@ -44,7 +44,7 @@ build() {
   ./configure \
     --prefix=/usr \
     --cpu=znver2 --cc="$CC" --cxx="$CXX" --extra-cflags="$CFLAGS" --extra-cxxflags="$CXXFLAGS" --extra-ldflags="$LDFLAGS" \
-    --disable-debug --disable-htmlpages --disable-podpages --disable-txtpages --disable-small --disable-amf --disable-avisynth \
+    --disable-debug --disable-htmlpages --disable-podpages --disable-txtpages --disable-small --disable-avisynth --disable-amf \
     --disable-cuda-llvm --disable-libgsm --disable-libiec61883 --disable-libjack --disable-libmodplug --disable-libopencore_amrnb \
     --disable-libopencore_amrwb --disable-libpulse --disable-librsvg --disable-libvpl --disable-libzmq --disable-nvdec --disable-nvenc \
     --enable-stripping \

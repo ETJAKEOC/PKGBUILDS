@@ -1,5 +1,5 @@
 pkgname=torbrowser-etjakeoc
-pkgver=15.0.9
+pkgver=15.0.10
 pkgrel=1
 pkgdesc="Custom compile of the TOR browser, verified against the TOR keys, from ETJAKEOC"
 arch=('any')
@@ -53,4 +53,7 @@ package() {
 	# Create a symlink for easier command-line launching
 	install -dm755 ${pkgdir}/usr/bin
 	ln -s /opt/tor-browser/Browser/start-tor-browser ${pkgdir}/usr/bin/torbrowser
+
+	# Fix user perms issue
+	chown -R 1000:1000 /opt/tor-browser
 }

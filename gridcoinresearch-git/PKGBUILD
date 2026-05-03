@@ -1,19 +1,16 @@
-pkgbase=gridcoinresearch-git
-pkgname=(gridcoinresearch-qt-git)
-pkgver=6d987dea7
+pkgname=(gridcoinresearch-git)
+pkgver=df13295b2
 pkgrel=1
 pkgdesc="A cryptocurrency that rewards users for participating on the BOINC network"
-makedepends=('git' 'boost' 'qt5-charts' 'qt5-tools' 'qrencode' 'db')
-depends=('boost-libs' 'db' 'miniupnpc' 'qrencode' 'qt5-base' 'qt5-charts')
+makedepends=('git' 'boost' 'qt6-charts' 'qt6-tools' 'qrencode' 'db')
+depends=('boost-libs' 'db' 'miniupnpc' 'qrencode' 'qt6-base' 'qt6-charts')
 arch=('x86_64')
 url="https://gridcoin.us"
 license=('custom:gridcoin')
-
 _sourcename="Gridcoin-Research"
-
 source=("git+https://github.com/gridcoin/Gridcoin-Research.git#branch=master")
-
 sha256sums=('SKIP')
+options=('!ccache' '!lto' 'buildflags' 'makeflags')
 
 pkgver() {
   cd "$srcdir/$_sourcename"
@@ -44,6 +41,6 @@ build() {
   cmake --build build
 }
 
-package_gridcoinresearch-qt-git() {
+package() {
   DESTDIR="$pkgdir" cmake --install "$srcdir/$_sourcename/build"
 }

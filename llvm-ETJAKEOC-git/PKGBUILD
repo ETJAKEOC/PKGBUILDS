@@ -1,7 +1,7 @@
 arch=('x86_64')
 pkgname=(llvm-git llvm-libs-git clang-git lld-git compiler-rt-git libunwind-git libcxx-git libcxxabi-git bolt-git polly-git mlir-git)
 pkgbase=llvm-project-git
-pkgver=23.0.0.r6078
+pkgver=23.0.0.r13841
 pkgrel=1
 pkgdesc="Meta LLVM/Clang stack: Clang, libc++, libc++abi, libunwind, lld, compiler-rt, clang-tools-extra, SPIRV, BOLT. Multi-target, optimized znver2."
 url="https://llvm.org/"
@@ -32,7 +32,9 @@ prepare() {
 # -------------------------------
 # Stage Flags (shared)
 # -------------------------------
-_cflags="-O2 -fPIC -pipe -g1 -fcommon -Wno-error -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS"
+unset CFLAGS CXXFLAGS LDFLAGS MAKEFLAGS
+_cflags="-O2 -fPIC -pipe -g1 -fcommon -Wno-error"
+#_cflags="-O2 -fPIC -pipe -g1 -fcommon -Wno-error -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS"
 _triple="x86_64-pc-linux-gnu"
 # -------------------------------
 _flags=(
@@ -72,7 +74,7 @@ _flags=(
   -DCMAKE_C_FLAGS_RELWITHDEBINFO=""
   -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=""
 
-  -DLLVM_ENABLE_LTO=Thin
+  -DLLVM_ENABLE_LTO=OFF
   -DLLVM_PARALLEL_COMPILE_JOBS=$(nproc)
   -DLLVM_PARALLEL_LINK_JOBS=$(($(nproc) / 2))
 

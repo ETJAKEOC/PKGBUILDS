@@ -1,0 +1,77 @@
+pkgbase=boinc
+pkgname=(boinc)
+pkgver=8.2.9
+pkgrel=1
+arch=('x86_64')
+url="https://boinc.berkeley.edu/"
+license=('LGPL-3.0-or-later')
+makedepends=('git' 'curl' 'freeglut' 'glu' 'libnotify' 'libnsl' 'libxmu' 'libxslt' 'libxss' 'mesa' 'perl-xml-sax' 'sqlite3' 'webkit2gtk-4.1' 'wxwidgets-gtk3')
+install=$pkgbase.install
+source=("git+https://github.com/BOINC/boinc.git" boinc.bash boinc.desktop boinc.sysusers)
+sha512sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' 'buildflags' 'lto' 'makeflags' 'strip')
+
+prepare() {
+  sed -i 's/`hostname`/archlinux/' boinc/generate_svn_version.sh
+  cp -a boinc{,-nox}
+  cd boinc
+  ./_autosetup
+}
+
+build() {
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=llvm-ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=llvm-ranlib
+  export HOSTCC=clang
+  export HOSTCXX=clang++
+  export HOSTAR=llvm-ar
+  export HOSTLD=lld
+
+  export MAKEFLAGS="-j20 -l12"
+  export NINJAFLAGS="-j20 -l12"
+  export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon -ffat-lto-objects"
+  export LDFLAGS="-fuse-ld=lld -O3 -lX11"
+  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
+
+  cd "$srcdir"/boinc
+  ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --enable-libraries \
+    --enable-unicode \
+    --enable-shared \
+    --enable-dynamic-client-linkage \
+    --enable-client \
+    --enable-manager \
+    --disable-static \
+    --disable-server \
+    --with-ssl \
+    --with-x \
+    --with-wxdir=/usr/lib \
+    --with-wx-config=$(which wx-config)
+  make
+}
+
+package_boinc() {
+  pkgdesc="Berkeley Open Infrastructure for Network Computing for desktop"
+  depends=('curl' 'libnotify' 'libnsl' 'libxss' 'sqlite3' 'webkit2gtk-4.1' 'wxwidgets-gtk3')
+  cd boinc
+  make DESTDIR="$pkgdir" install
+  install -Dm644 "$srcdir/$pkgbase.sysusers" "$pkgdir/usr/lib/sysusers.d/$pkgbase.conf"
+  install -Dm644 "$srcdir/$pkgbase.bash" "$pkgdir/usr/share/bash-completion/completions/$pkgbase"
+  install -Dm644 "$srcdir/$pkgbase.desktop" "$pkgdir/usr/share/applications/$pkgbase.desktop"
+  install -Dm644 "$srcdir/boinc/packages/generic/sea/boincmgr.48x48.png" "$pkgdir/usr/share/pixmaps/$pkgbase.png"
+  rm -rf "$pkgdir/etc"
+}
