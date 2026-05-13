@@ -1,6 +1,6 @@
-pkgname=libdrm-git
+pkgname=('libdrm-meta-git' 'lib32-libdrm-git' 'libdrm-git')
 _realname=libdrm
-pkgver=2.4.131.r1.g369990d9
+pkgver=2.4.133.r2.gb8b7c57c
 pkgrel=1
 pkgdesc="Userspace interface to kernel DRM services, master git version"
 arch=(i686 x86_64)
@@ -9,8 +9,7 @@ depends=('libpciaccess')
 makedepends=('python-docutils' 'meson' 'git' 'ninja')
 checkdepends=('cairo' 'cunit')
 url="http://dri.freedesktop.org/"
-provides=('libdrm')
-conflicts=('libdrm')
+provides=('libdrm' 'libdrm-git' 'lib32-libdrm' 'lib32-libdrm-git')
 
 source=('libdrm::git+https://gitlab.freedesktop.org/mesa/drm.git')
 sha512sums=('SKIP')
@@ -24,12 +23,13 @@ pkgver() {
 prepare() {
     if [ -d _build ]; then
         rm -rf _build && mkdir _build
+        rm -rf _build32 && mkdir _build32
     fi
 }
 
 build() {
-    export CC=/usr/bin/clang
-    export CXX=/usr/bin/clang++
+    export CC=clang
+    export CXX=clang++
     export LD=lld
 
     meson libdrm _build \
@@ -53,8 +53,48 @@ build() {
         -D udev=false \
         -D valgrind=disabled
     ninja -C _build
+
+    export CC="clang -m32"
+    export CXX="clang++ -m32"
+    export PKG_CONFIG=/usr/bin/i686-pc-linux-gnu-pkg-config
+    export PKG_CONFIG_PATH=/usr/lib32/pkgconfig:/usr/share/pkgconfig
+    export PKG_CONFIG_LIBDIR=/usr/lib32/pkgconfig
+
+    meson libdrm _build32 \
+        --reconfigure \
+        --optimization 3 \
+        --auto-features enabled \
+        -D prefix=/usr \
+        -D libdir=lib32 \
+        -D b_pie=true \
+        -D b_staticpic=true \
+        -D b_lto=true \
+        -D python.bytecompile=2 \
+        -D backend=ninja \
+        -D b_colorout=always \
+        -D c_args="-m32 $CFLAGS" \
+        -D c_link_args="-m32 $LDFLAGS" \
+        -D cpp_args="-m32 $CPPFLAGS" \
+        -D cpp_link_args="-m32 $LDFLAGS" \
+        --buildtype plain \
+        --wrap-mode nofallback \
+        -D udev=false \
+        -D valgrind=disabled
+    ninja -C _build32
 }
 
-package() {
+package_lib32-libdrm-git() {
+    pkgname=lib32-libdrm-git
+    DESTDIR="$pkgdir" ninja -C _build32 install
+    rm -rf "$pkgdir"/usr/{include,share,bin}
+}
+
+package_libdrm-git() {
+    pkgname=libdrm-git
     DESTDIR="$pkgdir" ninja -C _build install
+}
+
+package_libdrm-meta-git() {
+    # Just a meta package to tag both builds below
+    echo Just a meta package to tag both builds below > /dev/null
 }

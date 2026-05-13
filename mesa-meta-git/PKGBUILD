@@ -64,6 +64,20 @@ prepare() {
     cd mesa
     git submodule update --init --recursive
 
+	msg2 "Patching Mesa for LLVM 23 API changes..."
+
+	# Fix TargetRegistry::lookupTarget() API change
+	sed -i \
+		-e '/lookupTarget(triple, error_msg)/i\
+      llvm::Triple TT(triple);' \
+		-e 's/lookupTarget(triple, error_msg)/lookupTarget(TT, error_msg)/' \
+		src/compiler/clc/clc_helpers.cpp
+
+	# Fix MCSubtargetInfo return type change
+	sed -i \
+		-e 's/getMCSubtargetInfo()->/getMCSubtargetInfo()./' \
+		src/amd/llvm/ac_llvm_helper.cpp
+
     # Fix LLVM 23 incompatible pointer issue
     echo "Patching ac_llvm_build.c for Clang 23..."
     sed -i '/#if LLVM_VERSION_MAJOR >= 23/,/#else/ s/LLVMCreateDenormalFPEnvAttribute(ctx,/LLVMCreateDenormalFPEnvAttribute(ctx->context,/' "${srcdir}/mesa/src/amd/llvm/ac_llvm_build.c"
@@ -121,8 +135,8 @@ local _meson_flags=(
   -D xlib-lease=enabled
 
   # Disabled Gallium / D3D / Media Paths
-  -D gallium-d3d12-graphics=disabled
-  -D gallium-d3d12-video=disabled
+  -D gallium-d3d12-graphics=enabled
+  -D gallium-d3d12-video=enabled
   -D gallium-d3d10umd=false
   -D gallium-mediafoundation=disabled
 
@@ -153,7 +167,11 @@ local _meson_flags=(
         -D c_args="$CFLAGS" -D c_link_args="$LDFLAGS" -D cpp_args="$CPPFLAGS" -D cpp_link_args="$LDFLAGS" -D lmsensors=enabled
     ninja -j20 -C build
 
-    meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D llvm=enabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream -D gallium-rusticl=false -D gallium-extra-hud=false -D gallium-va=disabled \
+  export PKG_CONFIG_LIBDIR="/usr/lib32/pkgconfig:/usr/lib32/share/pkgconfig"
+  export PKG_CONFIG_PATH=""
+  export PKG_CONFIG_SYSROOT_DIR="/usr"
+
+    meson build32 mesa "${_meson_flags[@]}" -D libdir=/usr/lib32 -D amd-use-llvm=false -D draw-use-llvm=false -D llvm=disabled -D shared-llvm=disabled -D gallium-drivers=radeonsi,virgl,svga,softpipe -D vulkan-drivers=virtio,gfxstream -D gallium-rusticl=false -D gallium-extra-hud=false -D gallium-va=disabled \
         -D c_args="-m32 $CFLAGS" -D c_link_args="-m32 $LDFLAGS" -D cpp_args="-m32 $CPPFLAGS" -D  cpp_link_args="-m32 $LDFLAGS" -D lmsensors=disabled
     ninja -j20 -C build32
 }

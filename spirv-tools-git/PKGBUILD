@@ -1,6 +1,6 @@
 pkgname=spirv-tools-git
 epoch=3
-pkgver="2024.4".4095.7cac4f355
+pkgver="2026.2".4674.5be1e19fc
 pkgrel=1
 pkgdesc='API and commands for processing SPIR-V modules'
 url='https://github.com/KhronosGroup/SPIRV-Tools'
@@ -18,29 +18,6 @@ conflicts=(spirv-tools)
 provides=(spirv-tools)
 options=(!debug)
 
-cmake_args=(
-  -G "Unix Makefiles"
-  -D CMAKE_BUILD_TYPE=Release
-  -D CMAKE_INSTALL_PREFIX=/usr
-  -D CMAKE_INSTALL_LIBDIR=lib
-  -D SPIRV-Headers_SOURCE_DIR=/usr/
-  -D BUILD_SHARED_LIBS=ON
-  -D SPIRV_TOOLS_BUILD_STATIC=OFF
-  -D SPIRV_WERROR=OFF
-)
-
-prepare() {
-  pushd SPIRV-Tools/external
-  ln -s "$srcdir"/googletest
-  ln -s $srcdir/abseil-cpp abseil_cpp
-  ln -s "$srcdir"/effcee
-  ln -s "$srcdir"/re2
-  popd
-  patch --directory="SPIRV-Tools" --reverse --strip=1 --input="$srcdir"/75ad1345d4af5268448a9b26797294b48795cd69.patch
-  cmake   -S SPIRV-Tools -B _build "${cmake_args[@]}" -Wno-dev
-  make LLVM=1 LLVM_IAS=1 -j$(nproc) -C _build spirv-tools-build-version
-}
-
 pkgver() {
   local _ver1 _ver2
   IFS="," read -r _ver1 _ver2 < _build/build-version.inc || [ -n "_ver1" ]
@@ -48,11 +25,33 @@ pkgver() {
   echo ${_ver1//v/}.$(git rev-list --count HEAD).$(git rev-parse --short HEAD)
 }
 
+prepare() {
+  pushd SPIRV-Tools/external
+  ln -s "$srcdir"/googletest
+  ln -s $srcdir/abseil-cpp
+  ln -s $srcdir/abseil-cpp abseil_cpp
+  ln -s "$srcdir"/effcee
+  ln -s "$srcdir"/re2
+  popd
+
+  patch --directory="SPIRV-Tools" --reverse --strip=1 --input="$srcdir"/75ad1345d4af5268448a9b26797294b48795cd69.patch
+}
+
 build() {
-  make LLVM=1 LLVM_IAS=1 -j$(nproc) -C _build
+  cmake -S "${srcdir}"/SPIRV-Tools -B "${srcdir}"/_build \
+  -Wno-dev -G "Ninja" \
+  -D CMAKE_BUILD_TYPE=Release \
+  -D CMAKE_INSTALL_PREFIX=/usr \
+  -D CMAKE_INSTALL_LIBDIR=lib \
+  -D SPIRV-Headers_SOURCE_DIR=/usr/ \
+  -D BUILD_SHARED_LIBS=ON \
+  -D SPIRV_TOOLS_BUILD_STATIC=OFF \
+  -D SPIRV_WERROR=OFF
+
+  ninja -j$(nproc) -C "${srcdir}"/_build
 }
 
 package() {
-  make -C _build DESTDIR="$pkgdir" install
+  DESTDIR="${pkgdir}" ninja install -C "${srcdir}"/_build
   install -Dm644 "$srcdir"/SPIRV-Tools/LICENSE "$pkgdir"/usr/share/licenses/"$pkgname"/LICENSE
 }

@@ -1,0 +1,12 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+datadir=${prefix}/share
+libexecdir=${datadir}/clc
+
+Name: libclc
+Description: LLVM libclc
+Version: 23.0.0
+
+Cflags: -I${includedir}

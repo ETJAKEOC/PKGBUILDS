@@ -1,6 +1,6 @@
 # Maintainer: ETJAKEOC <ETJAKEOC@gmail.com>
 pkgname=qemu-full-git
-pkgver=11.0.0.rc2.r0.gb6a7d06213
+pkgver=11.0.0.r759.gee7eb612be
 pkgrel=1
 epoch=25
 arch=(x86_64)
@@ -8,7 +8,7 @@ pkgdesc="All-in-one QEMU: every architecture, system emulator, UI, audio backend
 license=(GPL-2.0-or-later LGPL-2.1-or-later)
 url="https://wiki.qemu.org/"
 depends=(
-    alsa-lib brltty bzip2 cairo capstone curl cdrtools dtc fuse3 gcc-libs gdk-pixbuf2
+    alsa-lib bzip2 cairo capstone curl cdrtools dtc fuse3 gcc-libs gdk-pixbuf2
     glib2 glusterfs gnutls gtk3 jack libaio libbpf libcacard libcap-ng libepoxy
     libiscsi libnfs libpng libpulse libsasl libseccomp libslirp libssh libusb
     libx11 libxkbcommon lzo mesa meson ncurses ndctl numactl pam pixman python
@@ -145,7 +145,7 @@ build() {
         --target-list="aarch64-softmmu,arm-softmmu,i386-softmmu,x86_64-softmmu,riscv32-softmmu,riscv64-softmmu" \
         --cc="${CC}" --cxx="${CXX}" --extra-cflags="${CFLAGS}" --extra-ldflags="${LDFLAGS}"
 
-    make -j$(nproc)
+    make -j20
 }
 
 package() {

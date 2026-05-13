@@ -2,7 +2,7 @@ _srcname=SPIRV-LLVM-Translator
 pkgname=spirv-llvm-translator-git
 pkgdesc="Tool and a library for bi-directional translation between SPIR-V and LLVM IR, trunk version (LLVM 21)"
 epoch=1
-pkgver=r2012.0838497
+pkgver=r2440.c2ba98f
 pkgrel=1
 arch=('x86_64')
 url="https://github.com/KhronosGroup/SPIRV-LLVM-Translator"
@@ -13,7 +13,6 @@ makedepends=(
   clang-git
   spirv-headers-git
   spirv-tools-git
-  clang-opencl-headers-git
   python python-setuptools
 )
 depends=(
@@ -51,9 +50,9 @@ _env() {
   export HOSTLD=lld
 
   export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe"
-  export CFLAGS="-march=znver2 -mtune=znver2 -fPIC -pipe -O3 -flto -fuse-linker-plugin -fno-plt -fomit-frame-pointer -fvisibility=hidden -ffunction-sections -fdata-sections -fno-semantic-interposition -g0"
+  export CFLAGS="-march=znver2 -mtune=znver2 -fPIC -pipe -O3 -fomit-frame-pointer -ffunction-sections -fdata-sections -g0"
   export CXXFLAGS="${CFLAGS}"
-  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -Wl,--icf=all -fuse-ld=lld -flto -O3 -pthread"
+  export LDFLAGS="-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -Wl,--icf=all -fuse-ld=lld -O3 -pthread"
 }
 
 build() {
@@ -61,7 +60,7 @@ build() {
   cmake \
     -B build \
     -S "$_srcname" \
-    -G "Unix Makefiles" \
+    -G "Ninja" \
     -D CMAKE_BUILD_TYPE=Release \
     -D CMAKE_INSTALL_PREFIX=/usr \
     -D CMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -71,12 +70,9 @@ build() {
     -D LLVM_SPIRV_INCLUDE_TESTS=ON \
     -D BUILD_SHARED_LIBS=ON \
     -Wno-dev
-  make -C build
+  ninja -C build
 }
 
-
 package() {
-  make -C _build DESTDIR="${pkgdir}" install
-  install -Dm755 _build/tools/llvm-spirv/llvm-spirv -t "${pkgdir}/usr/bin"
-  install -Dm644 "${_srcname}/LICENSE.TXT" -t "${pkgdir}/usr/share/licenses/${pkgname}/"
+  DESTDIR="${pkgdir}" ninja install -C "${srcdir}"/build
 }

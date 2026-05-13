@@ -1,0 +1,9 @@
+prefix=/usr
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: LLVMSPIRVLib
+Description: SPIR-V LLVM Translator
+Version: 23.0.0
+Libs: -L${libdir} -lLLVMSPIRVLib
+Cflags: -I${includedir}/LLVMSPIRVLib

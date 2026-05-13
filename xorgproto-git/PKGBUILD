@@ -1,0 +1,108 @@
+_pkgname=xorgproto
+pkgname=('xorgproto-meta-git' 'xorgproto-git' 'lib32-xorgproto-git')
+pkgver=2025.1.9.r2793.gfcb7e9a
+pkgrel=1
+pkgdesc='combined X.Org X11 Protocol headers (git version)'
+arch=('any')
+url="https://xorg.freedesktop.org/"
+license=('custom')
+makedepends=('git' 'meson' 'xorg-util-macros')
+checkdepends=('python-libevdev')
+provides=('xorgproto' 'xorgproto-git' 'lib32-xorgproto' 'lib32-xorgproto-git')
+source=("$_pkgname::git+https://gitlab.freedesktop.org/xorg/proto/xorgproto.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd "${srcdir}/${_pkgname}"
+  echo $(git describe --long | cut -d "-" -f2-3 | tr - .).r$(git rev-list HEAD --count).$(git describe --long | cut -d "-" -f4)
+}
+
+prepare() {
+  cd "${srcdir}"
+    if [  -d build ]; then
+        rm -rf build/*
+    else
+        mkdir build
+    fi
+    if [  -d build32 ]; then
+        rm -rf build32/*
+    else
+        mkdir build32
+    fi
+}
+
+build() {
+  source /etc/environment
+
+  meson "${srcdir}/${_pkgname}" build \
+    --reconfigure \
+    --optimization  3 \
+    --auto-features enabled \
+    -D	prefix=/usr \
+    -D	libdir=lib \
+    -D	b_pie=true \
+    -D	b_staticpic=true \
+    -D	b_lto=true \
+    -D	python.bytecompile=2 \
+    -D	backend=ninja \
+    -D	b_colorout=always \
+    -D	c_args="$CFLAGS" \
+    -D	c_link_args="$LDFLAGS" \
+    -D	cpp_args="$CPPFLAGS" \
+    -D	cpp_link_args="$LDFLAGS"
+
+  ninja -C build
+
+  export CC="clang -m32"
+  export CXX="clang++ -m32"
+  export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=clang
+  export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=clang
+  export RUSTFLAGS="-C linker=clang -C link-arg=-m32 -C link-arg=-fuse-ld=lld"
+  export LD_LIBRARY_PATH=/usr/lib32
+  export PKG_CONFIG_LIBDIR=/usr/lib32/pkgconfig
+  export PKG_CONFIG_PATH=/usr/lib32/pkgconfig:/usr/share/pkgconfig
+  export PKG_CONFIG_SYSROOT_DIR=/
+  export PKG_CONFIG=i686-pc-linux-gnu-pkg-config
+
+  meson "${srcdir}/${_pkgname}" build32 \
+    --reconfigure \
+    --optimization  3 \
+    --auto-features enabled \
+    -D	prefix=/usr \
+    -D	libdir=lib32 \
+    -D	b_pie=true \
+    -D	b_staticpic=true \
+    -D	b_lto=true \
+    -D	python.bytecompile=2 \
+    -D	backend=ninja \
+    -D	b_colorout=always \
+    -D	c_args="-m32 $CFLAGS" \
+    -D	c_link_args="-m32 $LDFLAGS" \
+    -D	cpp_args="-m32 $CPPFLAGS" \
+    -D	cpp_link_args="-m32 $LDFLAGS"
+
+  ninja -C build32
+}
+
+package_xorgproto-meta-git() {
+  pkgname='xorgproto-meta-git'
+  echo "Empty metapackage to satisfy multi-lib."
+}
+
+package_xorgproto-git() {
+  pkgname='xorgproto-git'
+  DESTDIR="$pkgdir" ninja -C "${srcdir}/build" install
+  rm -f "${pkgdir}"/usr/share/licenses/${_pkgname}/COPYING-{evieproto,fontcacheproto,lg3dproto,printproto,xcalibrateproto,xf86rushproto}
+  rm -f "${pkgdir}"/usr/include/X11/extensions/apple*
+  rm -f "${pkgdir}"/usr/share/licenses/${_pkgname}/COPYING-{apple,windows}wmproto
+  rm -f "${pkgdir}"/usr/share/pkgconfig/applewmproto.pc
+}
+
+package_lib32-xorgproto-git() {
+  pkgname='lib32-xorgproto-git'
+  DESTDIR="$pkgdir" ninja -C "${srcdir}/build32" install
+  mkdir "${pkgdir}"/usr/lib32
+  cp -a "${pkdir}"/usr/share/pkgconfig "${pkgdir}"/usr/lib32/pkgconfig
+  rm -rf "${pkgdir}"/usr/share
+  rm -rf "${pkgdir}"/usr/include
+}

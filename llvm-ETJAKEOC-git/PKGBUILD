@@ -1,297 +1,440 @@
 arch=('x86_64')
-pkgname=(llvm-git llvm-libs-git clang-git lld-git compiler-rt-git libunwind-git libcxx-git libcxxabi-git bolt-git polly-git mlir-git)
-pkgbase=llvm-project-git
-pkgver=23.0.0.r13841
+pkgname=(llvm llvm-libs clang lld
+ compiler-rt libunwind libcxx libcxxabi
+ bolt polly libclc spirv-llvm-translator)
+pkgbase=llvm-project
+pkgver=23.0.0.r15112
 pkgrel=1
-pkgdesc="Meta LLVM/Clang stack: Clang, libc++, libc++abi, libunwind, lld, compiler-rt, clang-tools-extra, SPIRV, BOLT. Multi-target, optimized znver2."
+pkgdesc="Meta LLVM/Clang stack: Clang, libc++, libc++abi, libunwind, lld, compiler-rt, clang-tools-extra, libclc, BOLT, SPIRV. Multi-target, optimized znver2, git build."
 url="https://llvm.org/"
 license=('Apache-2.0 WITH LLVM-exception')
-provides=('llvm-libs-git' 'llvm' 'clang-git' 'clang' 'compiler-rt-git' 'compiler-rt' 'lld-git' 'lld' 'libcxx-git' 'libcxx' 'libcxxabi-git' 'libcxxabi' 'libunwind-git' 'libunwind' 'bolt-git' 'bolt')
-conflicts=("${provides[@]}")
-makedepends=('git' 'cmake' 'ninja' 'python' 'python-setuptools' 'libffi' 'libedit' 'ncurses' 'libxml2' 'opencl-headers' 'z3' 'zstd')
-depends=('zlib' 'zstd' 'libffi' 'libedit' 'ncurses' 'libxml2')
-source=("git+https://github.com/llvm/llvm-project.git#branch=main" "libunwind.pc")
-sha512sums=('SKIP' 'SKIP')
-options=('!ccache' '!debug' '!docs' '!emptydirs' '!lto' '!makeflags' 'staticlibs' 'strip' '!buildflags')
+provides=($(
+	printf "%s\n" \
+		"${pkgname[@]}" \
+		"${pkgname[@]%}" \
+	| sort -u
+))
+makedepends=(git cmake ninja python python-setuptools libffi libedit ncurses libxml2 opencl-headers z3 zstd spirv-headers-git spirv-tools-git)
+depends=(zlib zstd libffi libedit ncurses libxml2 spirv-headers-git spirv-tools-git)
+source=("git-lfs+https://github.com/llvm/llvm-project.git#branch=main" "libunwind.pc" "libclc.pc"
+	"git-lfs+https://github.com/KhronosGroup/SPIRV-LLVM-Translator.git")
+sha512sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+options=('!ccache' '!debug' '!docs' '!emptydirs' '!lto' 'makeflags' '!staticlibs' '!strip' 'buildflags')
+
 ulimit -s unlimited
 
-# -------------------------------
+# --------------------------------------------------
 # Versioning
-# -------------------------------
+# --------------------------------------------------
+
 pkgver() {
-  cd "$srcdir/llvm-project"
-  _pkgver=$(git describe --tags | sed 's/^llvmorg-//; s/-init//; s/\([^-]*-g\)/0.0.r\1/; s/-/./g; s/\.g[0-9a-f]\{7,14\}$//')
-  echo "${_pkgver}"
+	cd "${srcdir}/llvm-project"
+
+	git describe --tags | sed \
+		-e 's/^llvmorg-//' \
+		-e 's/-init//' \
+		-e 's/\([^-]*-g\)/0.0.r\1/' \
+		-e 's/-/./g' \
+		-e 's/\.g[0-9a-f]\{7,14\}$//'
 }
 
 prepare() {
-  cd "$srcdir/llvm-project"
-  git submodule update --init --recursive
+	cd "${srcdir}"
+	rm *.pc && cp ../*.pc ./
+	cd "llvm-project"
+	git submodule update --init --recursive
+	cd "${srcdir}/SPIRV-LLVM-Translator"
+	git submodule update --init --recursive
 }
 
-# -------------------------------
-# Stage Flags (shared)
-# -------------------------------
-unset CFLAGS CXXFLAGS LDFLAGS MAKEFLAGS
-_cflags="-O2 -fPIC -pipe -g1 -fcommon -Wno-error"
-#_cflags="-O2 -fPIC -pipe -g1 -fcommon -Wno-error -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS"
+# --------------------------------------------------
+# Shared flags
+# --------------------------------------------------
+
+source /etc/environment
+
 _triple="x86_64-pc-linux-gnu"
-# -------------------------------
-_flags=(
-  # Base config
-  -G Ninja
-  -Wno-dev
-  -Wno-deprecated
-  -Wno-error=dev
-  -Wno-error=deprecated
-  -DCMAKE_BUILD_TYPE="Release"
+_cflags="-O2 -fPIC -pipe -g0 -fomit-frame-pointer -ffunction-sections -fdata-sections -Wno-error"
+_core_flags=(
+	# Base
+	-G Ninja
+	-Wno-dev
+	-Wno-deprecated
+	-Wno-error=dev
+	-Wno-error=deprecated
 
-  -DLLVM_BINUTILS_INCDIR="/usr/include"
-  -DCMAKE_INSTALL_PREFIX="/usr"
-  -DCMAKE_INSTALL_LIBDIR="lib"
-  -DLLVM_INSTALL_PACKAGE_DIR="lib/cmake/llvm"
+	-DCMAKE_BUILD_TYPE=Release
+	-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
 
-  -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=OFF
-  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
-  -DCMAKE_DISABLE_PRECOMPILE_HEADERS=OFF
+	-DCMAKE_INSTALL_PREFIX=/usr
+	-DCMAKE_INSTALL_LIBDIR=lib
+	-DCMAKE_INSTALL_RPATH="/usr/lib"
+	-DLLVM_INSTALL_PACKAGE_DIR=lib/cmake/llvm
+	-DLLVM_BINUTILS_INCDIR=/usr/include
 
-  # Toolchain
-  -DCMAKE_CXX_STANDARD="17"
-  -DLLVM_CCACHE_BUILD=OFF
-  -DCMAKE_C_COMPILER="clang"
-  -DCMAKE_CXX_COMPILER="clang++"
-  -DLLVM_USE_LINKER="lld"
+	-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=OFF
+	-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+	-DCMAKE_DISABLE_PRECOMPILE_HEADERS=OFF
+	-DLLVM_FORCE_VC_REVISION=OFF
+	-DLLVM_VERSION_SUFFIX=""
+	-DCLANG_REPOSITORY_STRING=""
 
-  -DLLVM_DEFAULT_TARGET_TRIPLE="$_triple"
-  -DLLVM_HOST_TRIPLE="$_triple"
-  -DLLVM_TARGET_TRIPLE="$_triple"
-  -DCMAKE_C_COMPILER_TARGET="$_triple"
-  -DCMAKE_CXX_COMPILER_TARGET="$_triple"
-  -DCMAKE_ASM_COMPILER_TARGET="$_triple"
+	# Toolchain
+	-DCMAKE_C_FLAGS="${_cflags}"
+	-DCMAKE_CXX_FLAGS="${_cflags}"
+	-DLLVM_CCACHE_BUILD=OFF
 
-  -DCMAKE_C_FLAGS="$_cflags"
-  -DCMAKE_CXX_FLAGS="$_cflags"
-  -DCMAKE_C_FLAGS_RELWITHDEBINFO=""
-  -DCMAKE_CXX_FLAGS_RELWITHDEBINFO=""
+	# Performance
+	-DLLVM_ENABLE_LTO=OFF
+	-DLLVM_PARALLEL_COMPILE_JOBS="$(nproc)"
+	-DLLVM_PARALLEL_LINK_JOBS="$(($(nproc) / 2))"
+)
 
-  -DLLVM_ENABLE_LTO=OFF
-  -DLLVM_PARALLEL_COMPILE_JOBS=$(nproc)
-  -DLLVM_PARALLEL_LINK_JOBS=$(($(nproc) / 2))
+_llvm_flags=(
+	"${_core_flags[@]}"
 
-  # Shared libs
-  -DLLVM_LINK_LLVM_DYLIB=ON
-  -DLLVM_BUILD_LLVM_DYLIB=ON
-  -DCLANG_LINK_CLANG_DYLIB=ON
+	# Toolchain
+	-DCMAKE_C_COMPILER=clang
+	-DCMAKE_CXX_COMPILER=clang++
+	-DLLVM_USE_LINKER=lld
+	-DCMAKE_CXX_STANDARD=17
 
-  # General features
-  -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON
-  -DLLVM_ENABLE_ASSERTIONS=OFF
-  -DLLVM_ENABLE_BINDINGS=ON
-  -DLLVM_ENABLE_EH=ON
-  -DLLVM_LIT_ARGS="-sv --ignore-fail"
-  -DLLVM_ENABLE_FFI=ON
-  -DFFI_INCLUDE_DIR:PATH="$(pkg-config --variable=includedir libffi)"
-  -DLLVM_ENABLE_PIC=ON
-  -DLLVM_ENABLE_RTTI=ON
-  -DLLVM_ENABLE_THREADS=ON
-  -DLLVM_ENABLE_ZLIB=ON
-  -DLLVM_ENABLE_ZSTD=ON
-  -DLLVM_ENABLE_LIBXML2=ON
-  -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
-  -DLLVM_OPTIMIZED_TABLEGEN=ON
-  -DPOLLY_ENABLE_GPGPU_CODEGEN=ON
-  -DLLVM_USE_HOST_TOOLS=ON
-  -DLLVM_USE_SPLIT_DWARF=ON
+	-DLLVM_DEFAULT_TARGET_TRIPLE="${_triple}"
+	-DLLVM_HOST_TRIPLE="${_triple}"
+	-DLLVM_TARGET_TRIPLE="${_triple}"
 
-  # Disable features
-  -DCLANG_ENABLE_STATIC_ANALYZER=OFF
-  -DLLVM_BUILD_BENCHMARKS=OFF
-  -DLLVM_BUILD_DOCS=OFF
-  -DLLVM_BUILD_EXAMPLES=OFF
-  -DLLVM_BUILD_TESTS=OFF
-  -DLLVM_ENABLE_DUMP=OFF
-  -DLLVM_ENABLE_EXPENSIVE_CHECKS=OFF
-  -DLLVM_ENABLE_PEDANTIC=OFF
-  -DLLVM_ENABLE_WARNINGS=OFF
-  -DLLVM_ENABLE_Z3_SOLVER=OFF
-  -DLLVM_INCLUDE_BENCHMARKS=OFF
-  -DLLVM_INCLUDE_DOCS=OFF
-  -DLLVM_INCLUDE_EXAMPLES=OFF
-  -DLLVM_INCLUDE_TESTS=OFF
+	-DCMAKE_C_COMPILER_TARGET="${_triple}"
+	-DCMAKE_CXX_COMPILER_TARGET="${_triple}"
+	-DCMAKE_ASM_COMPILER_TARGET="${_triple}"
 
-  # Projects, Targets, Runtimes
-  -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;llvm;bolt;polly;mlir"
-  -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt;libclc"
-  -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM;RISCV;WebAssembly;AMDGPU;SPIRV;BPF"
-  -DLIBCLC_TARGETS_TO_BUILD="amdgcn--;amdgcn-amd-amdhsa;amdgcn-amd-amdhsa-llvm;amdgcn-mesa-mesa3d;clspv--"
+	-DCMAKE_C_FLAGS_RELWITHDEBINFO=
+	-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=
 
-  # Extra features
-  -DLIBUNWIND_INSTALL_LIBRARY=ON
-  -DLLVM_INSTALL_BINUTILS_SYMLINKS=ON
-  -DLLVM_INSTALL_CCTOOLS_SYMLINKS=ON
-  -DLLVM_INSTALL_UTILS=ON
-  -DLIBUNWIND_ENABLE_SHARED=ON
+        -DLLVM_EXTERNAL_LIT=/usr/bin/lit
+        -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=/usr/include/spirv/
+	-DSPIRV-Headers_DIR=/usr/lib/cmake/SPIRV-Headers
+	-DSPIRV-Tools_DIR=/usr/lib/cmake/SPIRV-Tools
 
-  # Compiler RT
-  -DCOMPILER_RT_BUILD_BUILTINS=ON
-  -DCOMPILER_RT_BUILD_SANITIZERS=ON
-  -DCOMPILER_RT_BUILD_PROFILE=ON
-  -DCOMPILER_RT_BUILD_XRAY=OFF
-  -DCOMPILER_RT_BUILD_LIBFUZZER=OFF
-  -DCOMPILER_RT_BUILD_MEMPROF=OFF
-  -DCOMPILER_RT_BUILD_WITH_DEBUG_INFO=OFF
-  -DCOMPILER_RT_DEBUG=OFF
-  -DCOMPILER_RT_DEFAULT_TARGET_ONLY=OFF
-  -DCOMPILER_RT_SKIP_RUNTIME_CHECKS=ON
+	# General features
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+	-DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON
+	-DLLVM_ENABLE_BINDINGS=OFF
+	-DLLVM_ENABLE_ASSERTIONS=OFF
+	-DLLVM_ENABLE_OCAMLDOC=OFF
+	-DLLVM_ENABLE_EH=ON
+	-DLLVM_LIT_ARGS="-sv --ignore-fail"
+
+	-DLLVM_ENABLE_FFI=ON
+	-DFFI_INCLUDE_DIR:PATH=$(pkg-config --variable=includedir libffi)
+
+	-DLLVM_ENABLE_PIC=ON
+	-DLLVM_ENABLE_RTTI=ON
+	-DLLVM_ENABLE_THREADS=ON
+	-DLLVM_ENABLE_ZLIB=ON
+	-DLLVM_ENABLE_ZSTD=ON
+	-DLLVM_ENABLE_LIBXML2=ON
+
+	-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+	-DLLVM_OPTIMIZED_TABLEGEN=ON
+	-DLLVM_USE_HOST_TOOLS=ON
+	-DLLVM_USE_SPLIT_DWARF=ON
+
+	# Shared libs
+	-DLLVM_LINK_LLVM_DYLIB=ON
+	-DLLVM_BUILD_LLVM_DYLIB=ON
+	-DCLANG_LINK_CLANG_DYLIB=ON
+
+	# Disabled junk
+	-DCLANG_ENABLE_STATIC_ANALYZER=OFF
+	-DLLVM_BUILD_BENCHMARKS=OFF
+	-DLLVM_BUILD_DOCS=OFF
+	-DLLVM_BUILD_EXAMPLES=OFF
+	-DLLVM_BUILD_TESTS=OFF
+
+	-DLLVM_ENABLE_DUMP=OFF
+	-DLLVM_ENABLE_EXPENSIVE_CHECKS=OFF
+	-DLLVM_ENABLE_PEDANTIC=OFF
+	-DLLVM_ENABLE_WARNINGS=OFF
+	-DLLVM_ENABLE_Z3_SOLVER=OFF
+
+	-DLLVM_INCLUDE_BENCHMARKS=OFF
+	-DLLVM_INCLUDE_DOCS=OFF
+	-DLLVM_INCLUDE_EXAMPLES=OFF
+	-DLLVM_INCLUDE_TESTS=OFF
+
+	# Projects / runtimes / targets
+	-DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;bolt;polly"
+	-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt"
+	-DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM;WebAssembly;AMDGPU;BPF;SPIRV"
+	-DLIBCLC_TARGET="amdgcn-mesa-mesa3d;polaris10-amdgcn--;polaris11-amdgcn--;amdgcn-amd-amdhsa;nvptx64--"
+
+	# Extra
+	-DLIBUNWIND_INSTALL_LIBRARY=ON
+	-DLIBUNWIND_ENABLE_SHARED=ON
+
+	-DLLVM_INSTALL_BINUTILS_SYMLINKS=ON
+	-DLLVM_INSTALL_CCTOOLS_SYMLINKS=ON
+	-DLLVM_INSTALL_UTILS=ON
+
+	# compiler-rt
+	-DCOMPILER_RT_BUILD_BUILTINS=ON
+	-DCOMPILER_RT_BUILD_SANITIZERS=ON
+	-DCOMPILER_RT_BUILD_PROFILE=ON
+
+	-DCOMPILER_RT_BUILD_XRAY=OFF
+	-DCOMPILER_RT_BUILD_LIBFUZZER=OFF
+	-DCOMPILER_RT_BUILD_MEMPROF=OFF
+
+	-DCOMPILER_RT_BUILD_WITH_DEBUG_INFO=OFF
+	-DCOMPILER_RT_DEBUG=OFF
+
+	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=OFF
+	-DCOMPILER_RT_SKIP_RUNTIME_CHECKS=ON
 )
 
 build() {
-  msg2 "Configure LLVM-Project..."
-  cmake -B _build -S llvm-project/llvm "${_flags[@]}"
-  msg2 "Configuring complete!"
-  msg2 "Beginning compile..."
-  cmake --build _build --parallel $(nproc)
-  msg2 "Compile complete! Installing..."
-  cmake --install _build --prefix=_install
-  msg2 "Install complete!"
+	msg2 "Configuring LLVM..."
+	cmake -B _build -S llvm-project/llvm "${_llvm_flags[@]}"
+	msg2 "Building LLVM..."
+	cmake --build _build --parallel "$(nproc)"
+        DESTDIR="$srcdir/pkgroot" ninja install -C "$srcdir/_build"
+	msg2 "Build LLVM complete."
+
+	local _nllvm_flags=(
+	        "${_core_flags[@]}"
+
+	        -DCMAKE_C_COMPILER=${srcdir}/pkgroot/usr/bin/clang
+	        -DCMAKE_CXX_COMPILER=${srcdir}/pkgroot/usr/bin/clang++
+	        -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"
+
+	        -DCMAKE_PREFIX_PATH=${srcdir}/pkgroot/usr
+
+	        -DLLVM_CONFIG=${srcdir}/pkgroot/usr/bin/llvm-config
+	        -DLLVM_DIR=${srcdir}/pkgroot/usr/lib/cmake/llvm
+	)
+
+        msg2 "Configuring libclc..."
+	cmake "${_nllvm_flags[@]}" -S llvm-project/libclc -B _build-libclc \
+        -DLIBCLC_TARGET="amdgcn-mesa-mesa3d;polaris10-amdgcn--;polaris11-amdgcn--;amdgcn-amd-amdhsa;nvptx64--" \
+        -DLLVM_DEFAULT_TARGET_TRIPLE=amdgcn-mesa-mesa3d
+
+        msg2 "Building libclc..."
+        cmake --build _build-libclc --parallel "$(nproc)"
+        DESTDIR="$srcdir/pkgroot" ninja install -C "$srcdir/_build-libclc"
+
+        msg2 "Build libclc complete."
+
+	msg2 "Configuring spirv-llvm-translator..."
+	cmake "${_nllvm_flags[@]}" -S "${srcdir}/SPIRV-LLVM-Translator" -B _build-llvm-spirv
+	msg2 "Building spirv-llvm-translator..."
+	cmake --build _build-llvm-spirv --parallel "$(nproc)"
+        DESTDIR="$srcdir/pkgroot" ninja install -C "$srcdir/_build-llvm-spirv"
+	msg2 "SPIR-V translator build complete."
 }
 
-# -------------------------------
-# Packaging helpers
-# -------------------------------
-pkg_install_license() {
-  install -Dm644 "$srcdir/llvm-project/LICENSE.TXT" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-}
+# --------------------------------------------------
+# Helpers
+# --------------------------------------------------
 
 pkg_create_dirs() {
-  install -dm755 "$pkgdir/usr/"{bin,include,lib/cmake}
+        install -dm755 \
+                "$pkgdir/usr/bin" \
+                "$pkgdir/usr/include" \
+                "$pkgdir/usr/include/clang" \
+                "$pkgdir/usr/include/llvm" \
+                "$pkgdir/usr/lib" \
+                "$pkgdir/usr/lib/cmake" \
+                "$pkgdir/usr/lib/clang" \
+                "$pkgdir/usr/lib/clang/23" \
+                "$pkgdir/usr/lib/clang/23/include" \
+                "$pkgdir/usr/lib/pkgconfig" \
+                "$pkgdir/usr/lib/x86_64-pc-linux-gnu" \
+                "$pkgdir/usr/share" \
+                "$pkgdir/usr/share/clc"
 }
 
-# -------------------------------
-# Package Definitions
-# -------------------------------
-package_llvm-git() {
-  pkgdesc="LLVM compiler infrastructure"
-  depends=('llvm-libs-git' 'curl' 'perl')
-
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/"* "$pkgdir/usr/" 2>/dev/null || true
-  pkg_install_license
+pkg_install_license() {
+        install -Dm644 \
+                "$srcdir/llvm-project/LICENSE.TXT" \
+                "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
 
-package_llvm-libs-git() {
-  pkgdesc="LLVM runtime libraries"
-  depends=('gcc-libs' 'zlib' 'zstd' 'libffi' 'libedit' 'libxml2')
-  provides=('libLLVM.so' 'libLTO.so' 'libRemarks.so')
-
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/lib"/libLLVM*.so* "$pkgdir/usr/lib/"
-  cp -a "$srcdir/_install/usr/lib"/libLTO*.so* "$pkgdir/usr/lib/"
-  cp -a "$srcdir/_install/usr/lib"/libRemarks*.so* "$pkgdir/usr/lib/"
-  if [ -f "$srcdir/_install/usr/lib/LLVMgold.so" ]; then
-    cp -a "$srcdir/_install/usr/lib/LLVMgold.so" "$pkgdir/usr/lib/"
-    install -dm755 "$pkgdir/usr/lib/bfd-plugins"
-    ln -s ../LLVMgold.so "$pkgdir/usr/lib/bfd-plugins/LLVMgold.so"
-  fi
-  pkg_install_license
+pkg_prep() {
+	pkg_create_dirs
+	pkg_install_license
 }
 
-package_clang-git() {
-  depends=('llvm-git')
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/bin/clang"* "$pkgdir/usr/bin/"
-  cp -a "$srcdir/_install/usr/lib/clang" "$pkgdir/usr/lib/"
-  cp -a "$srcdir/_install/usr/include/clang" "$pkgdir/usr/include/"
-  cp -a "$srcdir/_install/usr/lib/cmake/clang" "$pkgdir/usr/lib/cmake/"
-  _py=$(python -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')
-  install -dm755 "$pkgdir/usr/lib/python$_py/site-packages"
-  cp -a "$srcdir/_install/usr/lib/clang/$pkgver/bindings/python/clang" \
-    "$pkgdir/usr/lib/python$_py/site-packages/"
-  python -OO -m compileall "$pkgdir/usr/lib/python$_py/site-packages/clang" >/dev/null
-  pkg_install_license
+# --------------------------------------------------
+# Packages
+# --------------------------------------------------
+
+package_llvm() {
+        pkgdesc="LLVM compiler infrastructure"
+        depends=('llvm-libs' 'curl' 'perl')
+
+        pkg_prep
+
+        find "$srcdir/pkgroot/usr/bin" -maxdepth 1 -type f \
+                \( -name 'llvm*' \
+                ! -name 'llvm-bolt*' \
+                ! -name 'llvm-spirv*' \
+                ! -name 'llvm-polly*' \) \
+                -exec cp -a -t "$pkgdir/usr/bin/" {} +
+
+	for f in ar ranlib nm objcopy objdump readelf strings strip size; do
+	        [[ -e "$srcdir/pkgroot/usr/bin/$f" ]] && cp -a "$srcdir/pkgroot/usr/bin/$f" "$pkgdir/usr/bin/"
+	done
+
+	rm $"pkgdir/usr/bin/strip"
+	ln -sf llvm-strip $"pkgdir/usr/bin/strip"
+        cp -a "$srcdir/pkgroot/usr/include/llvm" "$pkgdir/usr/include/"
+        cp -a "$srcdir/pkgroot/usr/include/llvm-c" "$pkgdir/usr/include/" 
+        cp -a "$srcdir/pkgroot/usr/lib/cmake/llvm" "$pkgdir/usr/lib/cmake/"
 }
 
-package_lld-git() {
-  depends=('llvm-git')
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/bin/ld.lld" "$pkgdir/usr/bin/"
-  cp -a "$srcdir/_install/usr/bin/lld"* "$pkgdir/usr/bin/"
-  cp -a "$srcdir/_install/usr/lib/cmake/lld" "$pkgdir/usr/lib/cmake/"
-  pkg_install_license
+package_llvm-libs() {
+        pkgdesc="LLVM runtime libraries"
+        depends=('gcc-libs' 'zlib' 'zstd' 'libffi' 'libedit' 'libxml2')
+
+        pkg_prep
+
+        cp -a "$srcdir/pkgroot/usr/lib/"libLLVM*.so* "$pkgdir/usr/lib/"
+        cp -a "$srcdir/pkgroot/usr/lib/"libLTO*.so* "$pkgdir/usr/lib/"
+        cp -a "$srcdir/pkgroot/usr/lib/"libRemarks*.so* "$pkgdir/usr/lib/"
+        cp -a "$srcdir/pkgroot/usr/lib/LLVMgold.so" "$pkgdir/usr/lib/" 
 }
 
-package_compiler-rt-git() {
-  depends=('clang-git')
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/lib/clang" "$pkgdir/usr/lib/"
-  pkg_install_license
+package_clang() {
+	pkgdesc="C language family frontend for LLVM"
+	depends=('llvm' 'llvm-libs')
+
+	pkg_prep
+
+	cp -a "$srcdir/pkgroot/usr/bin/"clang* "$pkgdir/usr/bin/"
+	cp -a "$srcdir/pkgroot/usr/lib/"libclang*.so* "$pkgdir/usr/lib/"
+	cp -a "$srcdir/pkgroot/usr/include/clang" "$pkgdir/usr/include/"
+	cp -a "$srcdir/pkgroot/usr/include/clang-c" "$pkgdir/usr/include/"
+	if [[ -d "$srcdir/pkgroot/usr/lib/cmake/clang" ]]; then
+		cp -a "$srcdir/pkgroot/usr/lib/cmake/clang" "$pkgdir/usr/lib/cmake/"
+	fi
+	for d in "$srcdir/pkgroot/usr/lib/clang/"*; do
+		[[ -d "$d" ]] || continue
+		ver="$(basename "$d")"
+
+		install -dm755 "$pkgdir/usr/lib/clang/$ver"
+
+		for sub in include share bin; do
+			[[ -d "$d/$sub" ]] || continue
+			cp -a "$d/$sub" "$pkgdir/usr/lib/clang/$ver/"
+		done
+	done
 }
 
-package_libunwind-git() {
-  depends=('gcc-libs')
-  install -dm755 "$pkgdir/usr/"{bin,include,lib/{cmake,pkgconfig}}
-  cp -a "$srcdir/_install/usr/lib/"$_triple"/libunwind"* "$pkgdir/usr/lib/"
-  for lib in "$pkgdir/usr/lib/$_triple"/libunwind*.so*; do
-    ln -sf "$(basename $lib)" "$pkgdir/usr/lib/$(basename $lib)"
-  done
-  cp -a "$srcdir/_install/usr/include/libunwind.h" "$pkgdir/usr/include/"
-  cp -a "$srcdir/libunwind.pc" "$pkgdir/usr/lib/pkgconfig/libunwind.pc"
-  pkg_install_license
+package_lld() {
+        pkgdesc="LLVM-based linker"
+        depends=('llvm' 'llvm-libs')
+
+        pkg_prep
+
+        cp -a "$srcdir/pkgroot/usr/bin/lld"* "$pkgdir/usr/bin/"
+	cp -a "$srcdir/pkgroot/usr/bin/ld.lld" "$pkgdir/usr/bin/"
+	cp -a "$srcdir/pkgroot/usr/bin/ld64.lld" "$pkgdir/usr/bin/"
+	cp -a "$srcdir/pkgroot/usr/bin/wasm-ld" "$pkgdir/usr/bin/"
+        cp -a "$srcdir/pkgroot/usr/lib/"liblld* "$pkgdir/usr/lib/" 
+        cp -a "$srcdir/pkgroot/usr/lib/cmake/lld" "$pkgdir/usr/lib/cmake/" 
 }
 
-package_libcxx-git() {
-  depends=('libcxxabi-git')
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/lib/"$_triple"/libc++"* "$pkgdir/usr/lib/"
-  for lib in "$pkgdir/usr/lib/$_triple"/libc++*.so*; do
-    ln -sf "$(basename $lib)" "$pkgdir/usr/lib/$(basename $lib)"
-  done
-  cp -a "$srcdir/_install/usr/include/c++" "$pkgdir/usr/include/"
-  pkg_install_license
+package_compiler-rt() {
+	pkgdesc="LLVM compiler runtime libraries"
+	depends=('llvm-libs')
+
+	pkg_prep
+
+	for d in "$srcdir/pkgroot/usr/lib/clang/"*; do
+		[[ -d "$d" ]] || continue
+		ver="$(basename "$d")"
+		install -dm755 "$pkgdir/usr/lib/clang/$ver"
+		if [[ -d "$d/lib" ]]; then
+			cp -a "$d/lib" "$pkgdir/usr/lib/clang/$ver/"
+		fi
+	done
 }
 
-package_libcxxabi-git() {
-  depends=('gcc-libs')
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/lib/"$_triple"/libc++abi"* "$pkgdir/usr/lib/"
-  for lib in "$pkgdir/usr/lib/$_triple"/libc++abi*.so*; do
-    ln -sf "$(basename $lib)" "$pkgdir/usr/lib/$(basename $lib)"
-  done
-  pkg_install_license
+package_libunwind() {
+        depends=('gcc-libs')
+
+        pkg_prep
+
+        cp -a "$srcdir/pkgroot/usr/lib/x86_64-pc-linux-gnu/"libunwind*.so* "$pkgdir/usr/lib/" 
+        cp -a "$srcdir/pkgroot/usr/lib/x86_64-pc-linux-gnu/"libunwind*.so* "$pkgdir/usr/lib/x86_64-pc-linux-gnu/" 
+        cp -a "$srcdir/pkgroot/usr/include/"*unwind* "$pkgdir/usr/include/" 
+        cp -a "$srcdir/libunwind.pc" "$pkgdir/usr/lib/pkgconfig/"
 }
 
-package_bolt-git() {
-  depends=('llvm-git')
-  pkg_create_dirs
-  cp -a "$srcdir/_install/usr/bin/llvm-bolt" "$pkgdir/usr/bin/"
-  cp -a "$srcdir/_install/usr/bin/merge-fdata" "$pkgdir/usr/bin/"
-  pkg_install_license
+package_libcxx() {
+        depends=('libcxxabi')
+
+        pkg_prep
+
+        for f in "$srcdir/pkgroot"/usr/lib/*/libc++.so*; do
+                install -Dm755 "$f" "$pkgdir/usr/lib/$(basename "$f")"
+        done
+
+        cp -a "$srcdir/pkgroot/usr/lib/x86_64-pc-linux-gnu/libc++"{experimental,.modules}* "$pkgdir/usr/lib/" 
+
+        if [[ -d "$srcdir/pkgroot/usr/include/c++" ]]; then
+                cp -a "$srcdir/pkgroot/usr/include/c++" "$pkgdir/usr/include/"
+        fi
 }
 
-package_polly-git() {
-  pkgdesc="Polyhedral optimizer for LLVM (git)"
-  depends=('llvm-git')
-  pkg_create_dirs
-  cd "$srcdir/_install"
-  install -Dm644 lib/libPolly.so "$pkgdir/usr/lib/libPolly.so"
-  install -Dm644 lib/libPollyISL.so "$pkgdir/usr/lib/libPollyISL.so"
-  cp -r include/polly "$pkgdir/usr/include/"
-  mkdir -p "$pkgdir/usr/lib/cmake/polly"
-  cp -r lib/cmake/polly/* "$pkgdir/usr/lib/cmake/polly/"
+package_libcxxabi() {
+        depends=('gcc-libs')
+
+        pkg_prep
+
+        for f in "$srcdir/pkgroot"/usr/lib/*/libc++*abi*.so*; do
+                install -Dm755 "$f" "$pkgdir/usr/lib/$(basename "$f")"
+        done
+
+        cp -a "$srcdir/pkgroot/usr/lib/x86_64-pc-linux-gnu/libc++"*abi*.so* \
+                "$pkgdir/usr/lib/" 
 }
 
-package_mlir-git() {
-  pkgdesc="Multi-Level IR infrastructure (git)"
-  depends=('llvm-git')
-  pkg_create_dirs
-  cd "$srcdir/_install"
-  for lib in lib/libMLIR*.so; do
-    install -Dm755 "$lib" "$pkgdir/usr/$lib"
-  done
-  for bin in bin/mlir-*; do
-    install -Dm755 "$bin" "$pkgdir/usr/$bin"
-  done
-  cp -r include/mlir "$pkgdir/usr/include/"
-  mkdir -p "$pkgdir/usr/lib/cmake/mlir"
-  cp -r lib/cmake/mlir/* "$pkgdir/usr/lib/cmake/mlir/"
+package_bolt() {
+        depends=('llvm')
+
+        pkg_prep
+
+        cp -a "$srcdir/pkgroot/usr/bin/llvm-bolt"* "$pkgdir/usr/bin/" 
+        cp -a "$srcdir/pkgroot/usr/bin/merge-fdata" "$pkgdir/usr/bin/" 
+        cp -a "$srcdir/pkgroot/usr/bin/perf2bolt" "$pkgdir/usr/bin/" 
+	cp -a "$srcdir/pkgroot/usr/lib/libbolt_rt_"* "$pkgdir/usr/lib/"
+}
+
+package_polly() {
+        depends=('llvm')
+
+        pkg_prep
+
+        cp -a "$srcdir/pkgroot/usr/lib/"*Polly* "$pkgdir/usr/lib/"
+        cp -a "$srcdir/pkgroot/usr/include/polly" "$pkgdir/usr/include/" 
+}
+
+package_libclc() {
+        depends=('llvm')
+
+        pkg_prep
+
+	cp -a "$srcdir/pkgroot/usr/share/clc" "$pkgdir/usr/share/" 
+        cp -a "$srcdir/libclc.pc" "$pkgdir/usr/lib/pkgconfig/"
+}
+
+package_spirv-llvm-translator() {
+        pkgdesc="SPIR-V LLVM translator (git)"
+        depends=('llvm' 'llvm-libs' 'clang')
+
+        pkg_prep
+
+	DESTDIR="${pkgdir}" ninja install -C "${srcdir}/_build-llvm-spirv"
+        cp -a "$srcdir/llvm-spirv.pc" "$pkgdir/usr/lib/pkgconfig/"
 }
