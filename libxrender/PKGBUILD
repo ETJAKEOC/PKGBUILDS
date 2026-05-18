@@ -1,0 +1,41 @@
+pkgname=('libxrender' 'lib32-libxrender')
+pkgver=0.9.12
+pkgrel=1
+pkgdesc="X Rendering Extension client library"
+arch=('x86_64')
+url="https://xorg.freedesktop.org/"
+license=('HPND-sell-variant')
+depends=('libx11' 'glibc' 'xorgproto')
+source=(${url}/archive/individual/lib/libXrender-${pkgver}.tar.xz)
+sha512sums=('SKIP')
+
+prepare() {
+  cp -a "${srcdir}/libXrender-${pkgver}" "${srcdir}/libXrender64"
+  cp -a "${srcdir}/libXrender-${pkgver}" "${srcdir}/libXrender32"
+}
+
+build() {
+  cd "${srcdir}/libXrender64"
+  ./configure --prefix=/usr --disable-static
+  make
+
+  export CC="clang -m32"
+  export CXX="clang++ -m32"
+  export PKG_CONFIG_PATH="/usr/lib32/pkgconfig"
+
+  cd "${srcdir}/libXrender32"
+  ./configure --prefix=/usr --disable-static --libdir=/usr/lib32
+  make
+}
+
+package_libxrender() {
+  cd "${srcdir}/libXrender64"
+  make DESTDIR="${pkgdir}" install
+}
+
+package_lib32-libxrender() {
+  cd "${srcdir}/libXrender32"
+
+  make DESTDIR="${pkgdir}" install
+  rm -rf "${pkgdir}"/usr/{include,share,bin}
+}

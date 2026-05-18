@@ -1,0 +1,54 @@
+pkgname=('vulkan-icd-loader' 'lib32-vulkan-icd-loader')
+pkgver=1.4.350.0
+pkgrel=1
+pkgdesc="Vulkan Installable Client Driver (ICD) Loader (64 and 32 bit)"
+url="https://www.vulkan.org/"
+arch=(x86_64)
+license=(Apache-2.0)
+depends=(glibc)
+makedepends=(cmake git libx11 libxrandr ninja python-lxml vulkan-headers wayland)
+optdepends=(
+  'vulkan-driver: packaged vulkan driver'
+  'lib32-vulkan-driver: packaged vulkan driver'
+)
+provides=(libvulkan.so)
+groups=(vulkan-devel)
+source=("git+https://github.com/KhronosGroup/Vulkan-Loader")
+b2sums=('SKIP')
+
+build() {
+  local cmake_options64=(
+    -D CMAKE_BUILD_TYPE=Release
+    -D CMAKE_INSTALL_PREFIX=/usr
+    -D CMAKE_INSTALL_SYSCONFDIR=/etc
+    -D CMAKE_SKIP_INSTALL_RPATH=ON
+  )
+
+  cmake -S Vulkan-Loader -B _build -G Ninja "${cmake_options64[@]}"
+  cmake --build _build
+
+
+  local cmake_options32=(
+    -D CMAKE_BUILD_TYPE=Release
+    -D CMAKE_INSTALL_LIBDIR=lib32
+    -D CMAKE_INSTALL_PREFIX=/usr
+    -D CMAKE_INSTALL_SYSCONFDIR=/etc
+    -D CMAKE_SKIP_INSTALL_RPATH=ON
+  )
+
+  export ASFLAGS+=" --32"
+  export CFLAGS+=" -m32"
+  export CXXFLAGS+=" -m32"
+  export PKG_CONFIG="i686-pc-linux-gnu-pkg-config"
+
+  cmake -S Vulkan-Loader -B _build32 -G Ninja "${cmake_options32[@]}"
+  cmake --build _build32
+}
+
+package_vulkan-icd-loader() {
+  DESTDIR="$pkgdir" cmake --install _build
+}
+
+package_lib32-vulkan-icd-loader() {
+  DESTDIR="$pkgdir" cmake --install _build32
+}

@@ -1,0 +1,47 @@
+pkgname=('libxtst' 'lib32-libxtst')
+pkgver=1.2.5
+pkgrel=1
+pkgdesc="library for XTEST & RECORD extensions"
+arch=('x86_64')
+url="https://gitlab.freedesktop.org/xorg/lib/libxtst"
+license=('MIT-open-group'
+         'HPND-sell-variant'
+         'X11'
+         'HPND-doc'
+         'HPND-doc-sell')
+depends=('libxext' 'libxi' 'libx11' 'glibc' 'xorgproto')
+makedepends=('xorg-util-macros')
+source=(https://xorg.freedesktop.org/releases/individual/lib/libXtst-${pkgver}.tar.xz)
+sha512sums=('SKIP')
+
+prepare() {
+  cp -a "${srcdir}/libXtst-${pkgver}" "${srcdir}/libXtst64"
+  cp -a "${srcdir}/libXtst-${pkgver}" "${srcdir}/libXtst32"
+}
+
+build() {
+  cd "${srcdir}/libXtst64"
+  ./configure --prefix=/usr --disable-static
+  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+  make
+
+  cd "${srcdir}/libXtst32"
+
+  export CC="clang -m32"
+  export PKG_CONFIG_PATH="/usr/lib32/pkgconfig"
+
+  ./configure --prefix=/usr --disable-static \
+    --libdir=/usr/lib32
+  make
+}
+
+package_libxtst() {
+  cd "${srcdir}/libXtst64"
+  make DESTDIR="${pkgdir}" install
+}
+
+package_lib32-libxtst() {
+  cd "${srcdir}/libXtst32"
+  make DESTDIR="${pkgdir}" install
+  rm -rf "${pkgdir}"/usr/{include,share}
+}

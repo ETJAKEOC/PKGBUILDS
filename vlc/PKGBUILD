@@ -1,0 +1,402 @@
+pkgbase=vlc
+pkgname=(vlc libvlc vlc-cli vlc-gui-qt vlc-plugins-base vlc-plugins-extra vlc-plugins-visualization vlc-plugins-video-output)
+_vlcver=3.0.22
+_vlcfixupver=
+pkgver=$_vlcver${_vlcfixupver//-/.r}
+pkgrel=3
+pkgdesc='Free and open source cross-platform multimedia player and framework'
+url=https://www.videolan.org/vlc/
+arch=(x86_64)
+license=(GPL-2.0-or-later LGPL-2.1-or-later)
+options=('!debug' '!docs' '!emptydirs' 'staticlibs' '!ccache' 'buildflags' 'lto' 'makeflags' 'strip')
+source=(git+git://git.videolan.org/vlc.git update-vlc-plugin-cache.hook)
+sha512sums=('SKIP' 'SKIP')
+
+prepare() {
+	cd "${srcdir}/${pkgbase}"
+	sed -e 's:truetype/ttf-dejavu:TTF:g' -i modules/visualization/projectm.cpp
+	sed -i 's/typedef const void\* UpnpEventPtr;/typedef void* UpnpEventPtr;/' modules/services_discovery/upnp.hpp
+	sed -i '/#include <gst\/gstbufferpool.h>/d; /#include <gst\/video\/gstvideopool.h>/d' modules/codec/gstreamer/gstvlcvideopool.h
+
+	local src
+	for src in "${source[@]}"; do
+		src="${src%%::*}"
+		src="${src##*/}"
+		[[ $src = *.patch ]] || continue
+		echo "Applying patch $src..."
+		patch -Np1 <"../$src"
+	done
+	./bootstrap
+#	cd contrib
+#	./bootstrap
+#	mkdir native && cd native
+#	../bootstrap
+
+#	cd "${srcdir}/${pkgbase}"
+	rm -rf po
+	mkdir -p po
+	touch po/Makefile.in.in
+	touch po/Makevars
+	touch po/LINGUAS
+	# force English only
+	echo "en" >po/LINGUAS
+	# stop gettext regeneration stupidity
+	find . -name Makefile.in -exec sed -i \
+		'/^SUBDIRS.*po/d' {} +
+	find . -name configure -exec sed -i \
+		's|po ||g' {} +
+}
+
+build() {
+	source /etc/environment
+
+	local configure_options=(
+		# Core install paths
+		--prefix=/usr
+		--sysconfdir=/etc
+		--with-kde-solid=/usr/share/solid/actions/
+
+		# Release / optimization behavior
+		--enable-release
+		--enable-vlc
+		--disable-rpath
+		--disable-update-check
+		--disable-nls
+
+		# AMD-focused video acceleration
+		--enable-libva
+		--enable-vdpau
+		--enable-wayland
+		--enable-drm
+		--enable-xvideo
+
+		# Core decode / codec stack
+		--enable-ffmpeg
+		--enable-avcodec
+		--enable-avformat
+		--enable-postproc
+		--enable-dav1d
+		--enable-aom
+		--enable-vpx
+		--enable-x264
+		--enable-x265
+		--enable-libmpeg2
+		--enable-mad
+		--enable-mpg123
+		--enable-a52
+		--enable-dca
+		--enable-dts
+		--enable-faad
+		--enable-fdkaac
+		--disable-faac
+		--enable-flac
+		--enable-vorbis
+		--enable-opus
+		--enable-speex
+		--enable-theora
+		--enable-twolame
+		--enable-musepack
+		--enable-modplug
+
+		# Container / format support
+		--enable-matroska
+		--enable-ogg
+		--enable-bluray
+		--enable-dvdnav
+		--enable-dvdread
+		--enable-vcd
+		--enable-archive
+		--enable-taglib
+		--enable-libxml2
+		--enable-zvbi
+
+		# Subtitle / text rendering
+		--enable-freetype
+		--enable-fontconfig
+		--enable-fribidi
+		--enable-harfbuzz
+		--enable-libass
+		--enable-svg
+		--enable-svgdec
+		--enable-aribsub
+		--enable-aribcam
+
+		# Audio output / resampling
+		--enable-alsa
+		--enable-pulse
+		--enable-jack
+		--enable-soxr
+		--enable-samplerate
+
+		# UI frontends
+		--enable-qt
+		--enable-ncurses
+		--enable-skins2
+		--disable-wxwidgets
+		--disable-gtk
+
+		# Visualizations / optional eye candy
+		--enable-projectm
+		--enable-goom
+
+		# Local removable media support
+		--enable-udev
+
+		# Keep local playback strong, kill network nonsense
+		--disable-live555
+		--disable-chromecast
+		--disable-avahi
+		--disable-microdns
+		--disable-upnp
+		--disable-sftp
+		--disable-shout
+		--disable-smbclient
+		--disable-nfs
+		--disable-mtp
+		--disable-libcddb
+		--disable-realrtsp
+
+		# Kill session-service garbage
+		--disable-dbus
+		--disable-dbus-screensaver
+		--disable-kwallet
+		--disable-libsecret
+		--disable-notify
+
+		# Remove unnecessary abstraction layers
+		--disable-gst-decode
+		--disable-gstreamer
+		--disable-quicksync
+
+		# Stuff that adds little value here
+		--disable-opencv
+		--disable-schroedinger
+		--disable-sndio
+		--disable-tiger
+		--disable-gme
+		--disable-kate
+
+		# Important modern GPU rendering path
+		--enable-libplacebo
+
+		# Security / crypto path still useful for media handling
+		--enable-gnutls
+	)
+
+	cd "${srcdir}/${pkgbase}"
+
+	export CFLAGS+=" -I/usr/include/samba-4.0 -ffat-lto-objects -Wno-incompatible-pointer-types"
+	export CPPFLAGS+=" -I/usr/include/samba-4.0"
+	export CXXFLAGS+=" -std=c++17"
+	export PKG_CONFIG_PATH="/usr/lib/ffmpeg4.4/pkgconfig"
+	export LUAC=/usr/bin/luac
+	export LUA_LIBS="$(pkg-config --libs lua)"
+	export RCC=/usr/bin/rcc-qt5
+	export PKG_CONFIG_PATH="/usr/lib/ffmpeg4.4/pkgconfig/:$PKG_CONFIG_PATH"
+
+	./configure "${configure_options[@]}"
+
+	sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+	./compile
+}
+
+_pick() {
+	local p="$1" f d
+	shift
+
+	for f; do
+		d="${srcdir}/$p/${f#${pkgdir}/}"
+		mkdir -p "$(dirname "$d")"
+		mv "$f" "$d"
+		rmdir -p --ignore-fail-on-non-empty "$(dirname "$f")"
+	done
+}
+
+package_vlc() {
+	depends=(
+		bash
+		hicolor-icon-theme
+		vlc-gui-qt=$pkgver
+	)
+
+	conflicts=(vlc-plugin)
+	replaces=(vlc-plugin)
+
+	cd "${srcdir}/${pkgbase}"
+	make DESTDIR="${pkgdir}" install
+
+	(
+		cd "${pkgdir}"
+
+		# Core library split
+		_pick libvlc usr/include
+		_pick libvlc usr/lib/libvlc*
+		_pick libvlc usr/lib/pkgconfig/{libvlc,vlc-plugin}.pc
+		_pick libvlc usr/lib/vlc/vlc-cache-gen
+
+		# CLI split
+		_pick vlc-cli usr/bin/{vlc,cvlc,rvlc,vlc-wrapper}
+		_pick vlc-cli usr/share/man/man1/vlc{,-wrapper}.1*
+
+		# GUI splits
+		_pick vlc-gui-ncurses usr/bin/nvlc
+		_pick vlc-gui-ncurses usr/lib/vlc/plugins/gui/libncurses_plugin.so
+
+		_pick vlc-gui-qt usr/bin/qvlc
+		_pick vlc-gui-qt usr/lib/vlc/plugins/gui/libqt_plugin.so
+
+		_pick vlc-gui-skins2 usr/bin/svlc
+		_pick vlc-gui-skins2 usr/lib/vlc/plugins/gui/libskins2_plugin.so
+		_pick vlc-gui-skins2 usr/share/vlc/skins2/*
+
+		# Core plugin bundles instead of 500 tiny split packages
+		_pick vlc-plugins-base usr/lib/vlc/plugins/{access,audio_filter,audio_output,codec,control,demux,logger,misc,mux,packetizer,spu,stream_filter,text_renderer}/
+
+		_pick vlc-plugins-extra usr/lib/vlc/plugins/{meta_engine,services_discovery}/
+
+		_pick vlc-plugins-video-output usr/lib/vlc/libvlc_vdpau.so*
+		_pick vlc-plugins-video-output usr/lib/vlc/libvlc_xcb_events.so*
+		_pick vlc-plugins-video-output usr/lib/vlc/plugins/{vaapi,vdpau,video_chroma,video_filter,video_output}/
+
+		_pick vlc-plugins-visualization usr/lib/vlc/plugins/visualization/
+	)
+
+	# cleanup
+	rm -f "${pkgdir}/usr/lib/vlc/libcompat.a"
+	rm -f "${pkgdir}/usr/share/vlc/utils/gnome-vlc-default.sh"
+	rm -rf "${pkgdir}/usr/share/doc/vlc/libvlc/"
+	rm -f "${pkgdir}/usr/share/vlc/vlc.ico"
+	rm -f "${pkgdir}/usr/lib/vlc/plugins/plugins.dat"
+
+	find "${pkgdir}/usr/lib/vlc" -type f -name '*.la' -delete
+}
+
+package_libvlc() {
+	pkgdesc+=" - library"
+
+	depends=(
+		gcc-libs
+		glibc
+	)
+
+	provides=(
+		libvlc.so
+		libvlccore.so
+	)
+
+	mv "${srcdir}/libvlc"/* "${pkgdir}"
+
+	install -Dm644 update-vlc-plugin-cache.hook \
+		"${pkgdir}/usr/share/libalpm/hooks/update-vlc-plugin-cache.hook"
+
+	install -d "${pkgdir}/usr/lib/vlc/plugins"
+	touch "${pkgdir}/usr/lib/vlc/plugins/plugins.dat"
+}
+
+package_vlc-cli() {
+	pkgdesc+=" - command line interface"
+
+	depends=(
+		bash
+		glibc
+		libvlc
+		vlc-plugins-base=$pkgver
+	)
+
+	mv "${srcdir}/vlc-cli"/* "${pkgdir}"
+}
+
+package_vlc-gui-qt() {
+	pkgdesc+=" - Qt GUI"
+
+	depends=(
+		bash
+		gcc-libs
+		glibc
+		libvlc
+		libx11
+		qt5-base
+		qt5-svg
+		qt5-wayland
+		qt5-x11extras
+		vlc-cli=$pkgver
+		vlc-plugins-base=$pkgver
+		vlc-plugins-video-output=$pkgver
+		wayland
+	)
+
+	optdepends=(
+		'vlc-plugins-extra: extra playback plugins'
+		'vlc-plugins-visualization: visualizations'
+	)
+
+	mv "${srcdir}/vlc-gui-qt"/* "${pkgdir}"
+}
+
+package_vlc-plugins-base() {
+	pkgdesc+=" - essential playback plugins"
+
+	depends=(
+		gcc-libs
+		glibc
+		libvlc
+		zlib
+	)
+
+	mv "${srcdir}/vlc-plugins-base"/* "${pkgdir}"
+}
+
+package_vlc-plugins-extra() {
+	pkgdesc+=" - extended local media plugins"
+
+	depends=(
+		glibc
+		libvlc
+		vlc-plugins-base
+	)
+
+	mv "${srcdir}/vlc-plugins-extra"/* "${pkgdir}"
+}
+
+package_vlc-plugins-video-output() {
+	pkgdesc+=" - AMD-focused video output plugins"
+
+	depends=(
+		gcc-libs
+		glibc
+		libglvnd
+		libva
+		libvlc
+		libx11
+		libxcb
+		wayland
+		xcb-util-keysyms
+	)
+
+	optdepends=(
+		'libva-mesa-driver: Mesa VA-API acceleration'
+	)
+
+	provides=(
+		libvlc_vdpau.so
+		libvlc_xcb_events.so
+	)
+
+	mv "${srcdir}/vlc-plugins-video-output"/* "${pkgdir}"
+}
+
+package_vlc-plugins-visualization() {
+	pkgdesc+=" - visualization plugins"
+
+	depends=(
+		gcc-libs
+		glibc
+		libglvnd
+		libgoom2
+		libvlc
+		projectm
+		ttf-dejavu
+	)
+
+	mv "${srcdir}/vlc-plugins-visualization"/* "${pkgdir}"
+}

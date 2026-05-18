@@ -40,9 +40,9 @@ build() {
   export NINJAFLAGS="-j20 -l12"
   export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1"
   export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
-  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon -ffat-lto-objects"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
   export LDFLAGS="-fuse-ld=lld -O3"
-  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C target-feature=+sse4.2,+avx2,+bmi2,+fma,+adx,+xsave,+xsaveopt,+pclmul,+sha,+popcnt -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
+  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
 
   cd "$srcdir"/boinc
   ./configure \
@@ -71,7 +71,7 @@ build() {
     --with-ssl \
     --with-wxdir=/usr/lib \
     --with-wx-config=$(which wx-config)
-  make
+  make -j20
 }
 
 package_boinc() {
