@@ -1,0 +1,21 @@
+--- a/depends/builders/default.mk	2026-05-20 11:49:11.262041204 -0400
++++ b/depends/builders/default.mk	2026-05-20 11:49:41.130809709 -0400
+@@ -1,11 +1,11 @@
+-default_build_CC = gcc
+-default_build_CXX = g++
+-default_build_AR = ar
+-default_build_OBJDUMP = objdump
++default_build_CC = clang
++default_build_CXX = clang++
++default_build_AR = llvm-ar
++default_build_OBJDUMP = llvm-objdump
+ default_build_TAR = tar
+-default_build_RANLIB = ranlib
+-default_build_STRIP = strip
+-default_build_NM = nm
++default_build_RANLIB = llvm-ranlib
++default_build_STRIP = llvm-strip
++default_build_NM = llvm-nm
+ default_build_INSTALL_NAME_TOOL = install_name_tool
+ 
+ define add_build_tool_func

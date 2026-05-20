@@ -1,4 +1,4 @@
-pkgname=(gridcoinresearch-git)
+pkgname=(gridcoinresearch-headless-git)
 pkgver=5.5.0
 pkgrel=1
 pkgdesc="A cryptocurrency that rewards users for participating on the BOINC network"
@@ -27,7 +27,6 @@ _flags=(
         -Wno-deprecated
         -Wno-error=dev
         -Wno-error=deprecated
-	-DCMAKE_POLICY_VERSION_MINIMUM=3.10
 
 	-B "${srcdir}/build"
 	-S "${srcdir}/${_sourcename}"
@@ -46,14 +45,11 @@ _flags=(
 
 	-DSTATIC_LIBS=OFF
 	-DENABLE_DOCS=OFF
-	-DENABLE_GUI=ON
+	-DENABLE_GUI=OFF
 	-DENABLE_PIE=ON
-	-DENABLE_QRENCODE=ON
 	-DENABLE_TESTS=OFF
 	-DENABLE_UPNP=ON
 	-DDEFAULT_UPNP=ON
-	-DUSE_DBUS=ON
-	-DUSE_QT6=ON
 )
 
   export CC=/bin/clang
@@ -74,11 +70,11 @@ _flags=(
   export CHOST="$CARCH-pc-linux-gnu"
   export HOST="$CHOST"
 
-  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g0 -Wno-error -fPIE -fPIC -funroll-loops -rtlib=compiler-rt -fuse-ld=lld"
+  export CFLAGS="-march=bdver2 -mtune=bdver2 -pipe -O3 -g0 -Wno-error -fPIE -fPIC -funroll-loops -rtlib=compiler-rt -fuse-ld=lld"
   export CPPFLAGS="$CFLAGS"
   export CXXFLAGS="$CFLAGS -unwindlib=libunwind"
   export LDFLAGS="-O3 -pipe -rtlib=compiler-rt -unwindlib=libunwind -shared-libgcc -fuse-ld=lld -Wl,--as-needed"
-  export RUSTFLAGS="-C opt-level=3 -C target-cpu=znver2 -C codegen-units=1 -C linker=clang -C panic=abort -C debuginfo=0 -C strip=debuginfo"
+  export RUSTFLAGS="-C opt-level=3 -C target-cpu=bdver2 -C codegen-units=1 -C linker=clang -C panic=abort -C debuginfo=0 -C strip=debuginfo"
 
   cmake "${_flags[@]}"
 
