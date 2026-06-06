@@ -1,6 +1,7 @@
 # Maintainer: noureddinex
 pkgname=lmstudio-git
-pkgver=0.4.13
+pkgver=0.4.14
+subver=4
 pkgrel=2
 pkgdesc="LM Studio - A desktop app for exploring and running large language models locally"
 arch=('x86_64')
@@ -10,7 +11,7 @@ depends=('fuse2' 'zlib' 'hicolor-icon-theme' 'gtk3' 'nss' 'libxcrypt-compat')
 options=('!strip')
 provides=(lmstudio)
 conflicts=('lmstudio' 'lmstudio-bin')
-source=("${pkgname}.AppImage"::"https://installers.lmstudio.ai/linux/x64/${pkgver}-1/LM-Studio-${pkgver}-1-x64.AppImage")
+source=("${pkgname}.AppImage"::"https://installers.lmstudio.ai/linux/x64/${pkgver}-${subver}/LM-Studio-${pkgver}-${subver}-x64.AppImage")
 sha256sums=('SKIP')
 
 prepare() {

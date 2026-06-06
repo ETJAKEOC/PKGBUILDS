@@ -1,0 +1,58 @@
+pkgname=i2pd-qt-git
+pkgver=2.59.0.r15.392e4d4 # renovate: datasource=github-tags depName=PurpleI2P/i2pd-qt
+pkgrel=1
+pkgdesc="i2pd with Qt based GUI "
+arch=('x86_64')
+url="https://i2pd.website/"
+license=('custom: BSD3')
+groups=('i2p')
+depends=('qt5-base' 'boost-libs' 'miniupnpc' 'openssl' 'zlib')
+makedepends=('git' 'boost' 'miniupnpc' 'openssl' 'zlib')
+provides=("${pkgname%-git}")
+conflicts=("${pkgname%-git}")
+source=('i2pd-qt::git+https://github.com/PurpleI2P/i2pd-qt.git')
+md5sums=('SKIP')
+options=('!debug' '!docs' '!emptydirs' '!staticlibs' '!ccache' '!buildflags' '!lto' '!makeflags' 'strip')
+
+pkgver() {
+  cd "${srcdir}/${pkgname%-git}"
+
+  printf "%s" "$(git describe --long | sed 's/\([^-]*-\)g/r\1/;s/-/./g')"
+}
+
+prepare() {
+  cd "${srcdir}/${pkgname%-git}"
+  git submodule init
+  git submodule update --recursive
+  sed -i 's/\$(AR) -r /\$(AR) /g' src/i2pd/Makefile
+}
+
+build() {
+  export CC=clang
+  export CPP=clang-cpp
+  export CXX=clang++
+  export LD=lld
+  export CC_LD=lld
+  export CXX_LD=lld
+  export AR=ar
+  export NM=llvm-nm
+  export STRIP=llvm-strip
+  export OBJCOPY=llvm-objcopy
+  export OBJDUMP=llvm-objdump
+  export READELF=llvm-readelf
+  export RANLIB=ranlib
+  export CPPFLAGS="-pipe -O3 -g1"
+  export CFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
+  export CXXFLAGS="-march=znver2 -mtune=znver2 -pipe -O3 -g1 -fPIC -fcommon"
+  export LDFLAGS="-fuse-ld=lld -O3"
+  export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
+  cd "${srcdir}/${pkgname%-git}"
+  qmake
+  make
+}
+
+package() {
+  cd "${srcdir}/${pkgname%-git}"
+  make INSTALL_ROOT="${pkgdir}" install
+  install -D -m644 LICENSE -t "${pkgdir}/usr/share/licenses/${pkgname%-git}/"
+}

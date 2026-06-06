@@ -1,9 +1,10 @@
 arch=('x86_64')
-pkgname=(llvm llvm-libs lib32-llvm-libs clang lld
+#pkgname=(llvm llvm-libs lib32-llvm-libs clang lld
+pkgname=(llvm llvm-libs clang lld
  compiler-rt libunwind libcxx libcxxabi
  bolt polly libclc spirv-llvm-translator mesa lib32-mesa)
 pkgbase=llvm-project
-pkgver=23.0.0.r15309
+pkgver=23.0.0.r16444
 pkgrel=1
 pkgdesc="Meta LLVM/Clang stack: Clang, libc++, libc++abi, libunwind, lld, compiler-rt, clang-tools-extra, libclc, BOLT, SPIRV. Multi-target, optimized znver2, with Mesa git build."
 url="https://llvm.org/"
@@ -12,11 +13,12 @@ provides=("${pkgname[@]}")
 conflicts=("${provides[@]}")
 makedepends=(git cmake ninja python python-setuptools libffi libedit ncurses libxml2 opencl-headers z3 zstd spirv-headers-git spirv-tools-git)
 depends=(zlib zstd libffi libedit ncurses libxml2 spirv-headers-git spirv-tools-git libdrm libxxf86vm libxdamage libxshmfence libelf libglvnd wayland lm_sensors vulkan-icd-loader zstd expat gcc-libs libxfixes libx11 systemd-libs libxext libxcb glibc zlib python xcb-util-keysyms xorgproto meson libxml2 libvdpau libva elfutils libxrandr glslang directx-headers-git python-mako python-ply cbindgen wayland-protocols python-packaging python-pyaml lib32-glibc lib32-libdrm lib32-vulkan-icd-loader)
-source=("git-lfs+https://github.com/llvm/llvm-project.git#branch=main" "libunwind.pc" "libclc.pc"
-	'git-lfs+https://gitlab.freedesktop.org/mesa/mesa.git'
-	"git-lfs+https://github.com/KhronosGroup/SPIRV-LLVM-Translator.git")
+source=("git+https://github.com/llvm/llvm-project.git#branch=main" "libunwind.pc" "libclc.pc"
+	"git+https://gitlab.freedesktop.org/mesa/mesa.git"
+	"git+https://github.com/KhronosGroup/SPIRV-Headers.git"
+	"git+https://github.com/KhronosGroup/SPIRV-LLVM-Translator.git")
 sha512sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
-options=('!ccache' '!debug' '!docs' '!emptydirs' '!lto' 'makeflags' '!staticlibs' '!strip' 'buildflags')
+options=('!ccache' '!debug' '!docs' '!emptydirs' '!lto' 'makeflags' '!staticlibs' 'strip' 'buildflags')
 
 ulimit -s unlimited
 
@@ -38,6 +40,9 @@ prepare() {
 	git submodule update --init --recursive
 
 	cd "${srcdir}/SPIRV-LLVM-Translator"
+	git submodule update --init --recursive
+
+	cd "${srcdir}/SPIRV-Headers"
 	git submodule update --init --recursive
 
     local _patchfile
@@ -86,6 +91,31 @@ pkgver() {
 }
 
 _build_64() {
+
+_arch_meson64() {
+case "$1" in
+        setup)
+                shift
+                /usr/bin/meson setup "${_meson_flags64[@]}" "$@"
+                ;;
+
+        configure)
+                shift
+                /usr/bin/meson configure "$@"
+                ;;
+
+        compile|install|test|devenv|introspect)
+                /usr/bin/meson "$@"
+                ;;
+
+        *)
+                # fallback compatibility behavior
+                /usr/bin/meson setup "${_meson_flags64[@]}" "$@"
+                ;;
+esac
+}
+
+
 _cflags="-march=znver2 -mtune=znver2 -O2 -fPIC -pipe -g0 -fomit-frame-pointer -ffunction-sections -fdata-sections -Wno-error"
 _core_flags64=(
 	# Base
@@ -124,7 +154,7 @@ _llvm_flags=(
 
 	# Performance
 	-DLLVM_ENABLE_LTO=OFF
-	-DLLVM_PARALLEL_COMPILE_JOBS="$(nproc)"
+	-DLLVM_PARALLEL_COMPILE_JOBS=16
 	-DLLVM_PARALLEL_LINK_JOBS=4
 
 	# Toolchain
@@ -134,11 +164,13 @@ _llvm_flags=(
 	-DCMAKE_CXX_STANDARD=17
 	-DLLVM_CCACHE_BUILD=OFF
 
+	-DCMAKE_ASM_FLAGS="-fPIC"
+
 	-DCMAKE_C_FLAGS_RELWITHDEBINFO=
 	-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=
 
 	# General features
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+	-DCMAKE_POSITION_INDEPENDENT_CODE=ON
 	-DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON
 	-DLLVM_ENABLE_BINDINGS=OFF
 	-DLLVM_ENABLE_ASSERTIONS=OFF
@@ -190,34 +222,30 @@ _llvm_flags=(
 	-DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM;WebAssembly;AMDGPU;BPF;SPIRV"
 
 	# Extra
-	-DLIBUNWIND_INSTALL_LIBRARY=ON
-	-DLIBUNWIND_ENABLE_SHARED=ON
-
 	-DLLVM_INSTALL_BINUTILS_SYMLINKS=ON
 	-DLLVM_INSTALL_CCTOOLS_SYMLINKS=ON
 	-DLLVM_INSTALL_UTILS=ON
 
 	# compiler-rt
+	-DCOMPILER_RT_BUILD_GWP_ASAN=OFF
 	-DCOMPILER_RT_BUILD_BUILTINS=ON
 	-DCOMPILER_RT_BUILD_SANITIZERS=ON
 	-DCOMPILER_RT_BUILD_PROFILE=ON
-
 	-DCOMPILER_RT_BUILD_XRAY=OFF
 	-DCOMPILER_RT_BUILD_LIBFUZZER=OFF
 	-DCOMPILER_RT_BUILD_MEMPROF=OFF
-
 	-DCOMPILER_RT_BUILD_WITH_DEBUG_INFO=OFF
 	-DCOMPILER_RT_DEBUG=OFF
-
-	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=OFF
 	-DCOMPILER_RT_SKIP_RUNTIME_CHECKS=ON
+	-DCOMPILER_RT_DEFAULT_TARGET_ONLY=OFF
+	-DCOMPILER_RT_ENABLE_PER_TARGET_RUNTIME_DIR=ON
 )
 
 	msg2 "Configuring LLVM..."
 	cmake -B _build -S llvm-project/llvm "${_llvm_flags[@]}"
 
 	msg2 "Building LLVM..."
-	cmake --build _build --parallel "$(nproc)"
+	ninja -C _build -j16 -l16
         DESTDIR="$srcdir/pkgroot" ninja install -C "$srcdir/_build"
 	ln -sf llvm-ar "${srcdir}/pkgroot/usr/bin/ar"
 	ln -sf llvm-ranlib "${srcdir}/pkgroot/usr/bin/ranlib"
@@ -228,29 +256,29 @@ _llvm_flags=(
 	ln -sf llvm-strings "${srcdir}/pkgroot/usr/bin/strings"
 	ln -sf llvm-strip "${srcdir}/pkgroot/usr/bin/strip"
 	ln -sf llvm-size "${srcdir}/pkgroot/usr/bin/size"
-	msg2 "Build LLVM complete."
+	msg2 "Build LLVM complete!"
 
-	export CC=${srcdir}/pkgroot/usr/bin/clang
-	export CXX=${srcdir}/pkgroot/usr/bin/clang++
-	export CPP=${srcdir}/pkgroot/usr/bin/clang-cpp
-	export LD=${srcdir}/pkgroot/usr/bin/lld
-	export CC_LD=${srcdir}/pkgroot/usr/bin/lld
-	export CXX_LD=${srcdir}/pkgroot/usr/bin/lld
+#	export CC=${srcdir}/pkgroot/usr/bin/clang
+#	export CXX=${srcdir}/pkgroot/usr/bin/clang++
+#	export CPP=${srcdir}/pkgroot/usr/bin/clang-cpp
+#	export LD=${srcdir}/pkgroot/usr/bin/ld.lld
+#	export CC_LD=${srcdir}/pkgroot/usr/bin/ld.lld
+#	export CXX_LD=${srcdir}/pkgroot/usr/bin/ld.lld
 
-	export AR=${srcdir}/pkgroot/usr/bin/llvm-ar
-	export NM=${srcdir}/pkgroot/usr/bin/llvm-nm
-	export STRIP=${srcdir}/pkgroot/usr/bin/llvm-strip
-	export OBJCOPY=${srcdir}/pkgroot/usr/bin/llvm-objcopy
-	export OBJDUMP=${srcdir}/pkgroot/usr/bin/llvm-objdump
-	export READELF=${srcdir}/pkgroot/usr/bin/llvm-readelf
-	export RANLIB=${srcdir}/pkgroot/usr/bin/llvm-ranlib
+#	export AR=${srcdir}/pkgroot/usr/bin/llvm-ar
+#	export NM=${srcdir}/pkgroot/usr/bin/llvm-nm
+#	export STRIP=${srcdir}/pkgroot/usr/bin/llvm-strip
+#	export OBJCOPY=${srcdir}/pkgroot/usr/bin/llvm-objcopy
+#	export OBJDUMP=${srcdir}/pkgroot/usr/bin/llvm-objdump
+#	export READELF=${srcdir}/pkgroot/usr/bin/llvm-readelf
+#	export RANLIB=${srcdir}/pkgroot/usr/bin/llvm-ranlib
 
 	export PATH=${srcdir}/pkgroot/usr/bin:$PATH
 
 	export CPPFLAGS="-march=znver2 -mtune=znver2 -pipe -O2 -g0"
-	export CFLAGS="$_cflags -I${srcdir}/pkgroot/usr/include -L${srcdir}/pkgroot/usr/lib"
+	export CFLAGS="$_cflags -I${srcdir}/pkgroot/usr/include"
 	export CXXFLAGS="$CFLAGS"
-	export LDFLAGS="-fuse-ld=lld -O2"
+	export LDFLAGS="-fuse-ld=lld -O2 -L${srcdir}/pkgroot/usr/lib"
 	export RUSTFLAGS="-C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
 
 	local _nllvm_flags=(
@@ -269,42 +297,68 @@ _llvm_flags=(
         -DLLVM_DEFAULT_TARGET_TRIPLE=amdgcn-mesa-mesa3d
 
         msg2 "Building libclc..."
-        cmake --build _build-libclc --parallel "$(nproc)"
+        ninja -C _build-libclc -j16 -l16
         DESTDIR="$srcdir/pkgroot" ninja install -C "$srcdir/_build-libclc"
 
-        msg2 "Build libclc complete."
+        msg2 "Build libclc complete!"
 
 	msg2 "Configuring spirv-llvm-translator..."
 	cmake "${_nllvm_flags[@]}" -S "${srcdir}/SPIRV-LLVM-Translator" -B _build-llvm-spirv \
-	        -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=/usr/include/spirv/
+	        -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR="${srcdir}/SPIRV-Headers"
 
 	msg2 "Building spirv-llvm-translator..."
-	cmake --build _build-llvm-spirv --parallel "$(nproc)"
+	ninja -C _build-llvm-spirv -j16 -l16
         DESTDIR="$srcdir/pkgroot" ninja install -C "$srcdir/_build-llvm-spirv"
-	msg2 "SPIR-V translator build complete."
+	msg2 "SPIR-V translator build complete!"
 
 	msg2 "Configuring Mesa..."
 
     local _meson_flags64=(
-      # Core Meson / Build System Setup
-      -D prefix=/usr
-      -D libdir=/usr/lib
-      -D backend=ninja
-      -D default_library=shared
-      -D b_colorout=always
-      -D c_args="$CFLAGS"
-      -D c_link_args="$LDFLAGS"
-      -D cpp_args="$CPPFLAGS"
-      -D cpp_link_args="$LDFLAGS"
+        # Base
+        --reconfigure
+        --default-library shared
+        --default-both-libraries shared
+        --optimization 3
+        --auto-features enabled
+        --strip
+        --unity off
+
+        -D prefix=/usr
+        -D bindir=bin
+        -D datadir=share
+        -D includedir=include
+        -D infodir=share/info
+        -D libdir=lib
+        -D licensedir=share/licenses
+        -D libexecdir=libexec
+        -D localedir=share/locale
+        -D localstatedir=var
+        -D mandir=share/man
+        -D sbindir=sbin
+
+        -D b_colorout=always
+        -D b_pie=true
+        -D b_staticpic=true
+        -D b_lto=true
+
+        -D backend=ninja
+        -D python.bytecompile=2
+
+        -D c_args="$CFLAGS"
+        -D c_link_args="$LDFLAGS"
+        -D cpp_args="$CPPFLAGS"
+        -D cpp_link_args="$LDFLAGS"
 
       # Features
       -D amd-use-llvm=true
       -D draw-use-llvm=true
       -D llvm=enabled
       -D shared-llvm=enabled
+      -D llvm-orcjit=true
+      -D mesa-clc=enabled
       -D gallium-drivers=radeonsi,nouveau,virgl,svga,llvmpipe
       -D vulkan-drivers=amd,swrast,virtio,gfxstream
-      -D gallium-rusticl=true
+      -D gallium-rusticl=false
       -D gallium-extra-hud=true
       -D gallium-va=enabled
       -D lmsensors=enabled
@@ -361,20 +415,53 @@ _llvm_flags=(
     )
 
         msg2 "Configuring Mesa 64-bit..."
-        meson _build-mesa mesa "${_meson_flags64[@]}"
+        _arch_meson64 setup _build-mesa mesa
         msg2 "Building Mesa 64-bit..."
-        ninja -j20 -C _build-mesa
-        msg2 "Building Mesa 64-bit..."
+        ninja -C _build-mesa -j16 -l16
+        msg2 "Build Mesa 64-bit complete!"
 }
 
 _build_32() {
+
+_arch_meson32() {
+export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=clang
+export RUSTFLAGS="-C linker=clang -C link-arg=-m32 -C link-arg=-fuse-ld=lld"
+export LD_LIBRARY_PATH=/usr/lib32
+#export PKG_CONFIG_LIBDIR=/usr/lib32/pkgconfig
+#export PKG_CONFIG_PATH=/usr/lib32/pkgconfig:/usr/share/pkgconfig
+export PKG_CONFIG_SYSROOT_DIR=/
+export PKG_CONFIG=i686-pc-linux-gnu-pkg-config
+
+case "$1" in
+        setup)
+                shift
+                /usr/bin/meson setup "${_meson_setup_flags32[@]}" "$@"
+                ;;
+
+        configure)
+                shift
+                /usr/bin/meson configure "$@"
+                ;;
+
+        compile|install|test|devenv|introspect)
+                /usr/bin/meson "$@"
+                ;;
+
+        *)
+                # fallback compatibility behavior
+                /usr/bin/meson setup "${_meson_setup_flags32[@]}" "$@"
+                ;;
+esac
+}
+
 _cflags32="-m32 -O2 -pipe -g0 -fomit-frame-pointer -ffunction-sections -fdata-sections -Wno-error"
 
 export CPPFLAGS32="-pipe -O2 -g0"
 export CFLAGS32="$_cflags32 -I${srcdir}/pkgroot/usr/include -L${srcdir}/pkgroot/usr/lib"
-export CXXFLAGS32="$CFLAGS"
-export LDFLAGS32="-m32 -fuse-ld=lld -O2"
-export RUSTFLAGS="-m32 -C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
+export CXXFLAGS32="$CFLAGS32"
+export LDFLAGS32="-m32 -fuse-ld=lld -O2 -L${srcdir}/pkgroot/usr/lib32"
+export RUSTFLAGS="-C target-feature=+32bit -C opt-level=3 -C codegen-units=1 -C target-cpu=znver2 -C force-frame-pointers=yes -C strip=debuginfo -C debuginfo=0 -C linker=clang -C link-arg=-fuse-ld=lld -C linker-plugin-lto -C overflow-checks=off"
+export LLVM_CONFIG="${srcdir}/pkgroot/usr/bin/llvm-config"
 
 _core_flags32=(
         -G Ninja
@@ -421,6 +508,7 @@ _core_flags32=(
         -DLLVM_INCLUDE_TESTS=OFF
         -DLLVM_INCLUDE_TOOLS=OFF
         -DLLVM_INCLUDE_UTILS=OFF
+	-DCOMPILER_RT_BUILD_BUILTINS=OFF
 )
 
 	local _nllvm_flags32=(
@@ -428,28 +516,54 @@ _core_flags32=(
 	        -DCMAKE_C_COMPILER=${srcdir}/pkgroot/usr/bin/clang
 	        -DCMAKE_CXX_COMPILER=${srcdir}/pkgroot/usr/bin/clang++
 	        -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"
-	        -DCMAKE_PREFIX_PATH=${srcdir}/pkgroot32/usr
+	        -DCMAKE_PREFIX_PATH=${srcdir}/pkgroot/usr
 	        -DLLVM_CONFIG=${srcdir}/pkgroot/usr/bin/llvm-config
-	        -DLLVM_DIR=${srcdir}/pkgroot32/usr/lib32/cmake/llvm
+	        -DLLVM_DIR=${srcdir}/pkgroot/usr/lib32/cmake/llvm
 	)
 
     local _meson_flags32=(
-      # Core Meson / Build System Setup
-      -D prefix=/usr
-      -D libdir=/usr/lib32
-      -D backend=ninja
-      -D default_library=shared
-      -D b_colorout=always
-      -D c_args="$CFLAGS32"
-      -D c_link_args="$LDFLAGS32"
-      -D cpp_args="$CPPFLAGS32"
-      -D cpp_link_args="$LDFLAGS32"
+     # Base
+        --reconfigure
+        --default-library shared
+        --default-both-libraries shared
+        --optimization 3
+        --auto-features enabled
+        --strip
+        --unity off
+
+        -D prefix=/usr
+        -D bindir=bin
+        -D datadir=share
+        -D includedir=include
+        -D infodir=share/info
+        -D libdir=lib32
+        -D licensedir=share/licenses
+        -D libexecdir=libexec
+        -D localedir=share/locale
+        -D localstatedir=var
+        -D mandir=share/man
+        -D sbindir=sbin
+
+        -D b_colorout=always
+        -D b_pie=true
+        -D b_staticpic=true
+        -D b_lto=true
+
+        -D backend=ninja
+        -D python.bytecompile=2
+
+        -D c_args="-m32 $CFLAGS"
+        -D c_link_args="-m32 $LDFLAGS"
+        -D cpp_args="-m32 $CPPFLAGS"
+        -D cpp_link_args="-m32 $LDFLAGS"
 
       # Features
       -D amd-use-llvm=true
       -D draw-use-llvm=true
       -D llvm=enabled
       -D shared-llvm=enabled
+      -D llvm-orcjit=true
+      -D mesa-clc=system
       -D gallium-drivers=radeonsi,nouveau,virgl,svga,softpipe
       -D vulkan-drivers=amd,virtio,gfxstream
       -D gallium-rusticl=false
@@ -508,22 +622,22 @@ _core_flags32=(
       -D tools=[]
     )
 
-        export PKG_CONFIG_LIBDIR="/usr/lib32/pkgconfig:/usr/lib32/share/pkgconfig"
+#        export PKG_CONFIG_LIBDIR="/usr/lib32/pkgconfig:/usr/lib32/share/pkgconfig"
         export PKG_CONFIG_PATH=""
         export PKG_CONFIG_SYSROOT_DIR="/usr"
 
-        msg2 "Configuring LLVM 32 bit libraries..."
-        cmake -B _build-llvm32 -S llvm-project/llvm "${_core_flags32[@]}"
+#        msg2 "Configuring LLVM 32 bit libraries..."
+#        cmake -B _build-llvm32 -S llvm-project/llvm "${_core_flags32[@]}"
 
-        msg2 "Building LLVM 32 bit libraries..."
-        cmake --build _build-llvm32 --parallel "$(nproc)"
-                DESTDIR="$srcdir/pkgroot32" ninja install -C "$srcdir/_build-llvm32"
-        msg2 "Build LLVM complete."
+#        msg2 "Building LLVM 32 bit libraries..."
+#        ninja -C _build-llvm32 -j16 -l16
+#                DESTDIR="$srcdir/pkgroot32" ninja install -C "$srcdir/_build-llvm32"
+#        msg2 "Build LLVM complete."
 
         msg2 "Configuring Mesa 32-bit..."
-        meson _build-mesa32 mesa "${_meson_flags32[@]}"
+        _arch_meson32 setup _build-mesa32 mesa
         msg2 "Building Mesa 32-bit..."
-        ninja -j20 -C _build-mesa32
+        ninja -C _build-mesa32 -j16 -l16
         msg2 "Built Mesa 32-bit!"
 
 }
@@ -602,13 +716,13 @@ package_llvm-libs() {
         cp -a "$srcdir/pkgroot/usr/lib/LLVMgold.so" "$pkgdir/usr/lib/" 
 }
 
-package_lib32-llvm-libs() {
-        pkgdesc="LLVM runtime libraries 32 bits"
-        depends=('lib32-gcc-libs' 'lib32-zlib' 'lib32-zstd' 'lib32-libffi' 'lib32-libedit' 'lib32-libxml2')
+#package_lib32-llvm-libs() {
+#        pkgdesc="LLVM runtime libraries 32 bits"
+#        depends=('lib32-gcc-libs' 'lib32-zlib' 'lib32-zstd' 'lib32-libffi' 'lib32-libedit' 'lib32-libxml2')
 
-        install -dm755 "$pkgdir/usr/lib32"
-        cp -a "$srcdir/pkgroot32/usr/lib32/"*.so* "$pkgdir/usr/lib32/"
-}
+#        install -dm755 "$pkgdir/usr/lib32"
+#        cp -a "$srcdir/pkgroot32/usr/lib32/"*.so* "$pkgdir/usr/lib32/"
+#}
 
 package_clang() {
         pkgdesc="C language family frontend for LLVM"
@@ -770,7 +884,7 @@ package_mesa() {
 
         pkg_prep
 
-        DESTDIR="$pkgdir" ninja -j$(nproc) -C _build-mesa install
+        DESTDIR="$pkgdir" ninja -j16 -l16 -C _build-mesa install
         ln -s usr/lib/libGLX_mesa.so.0 "$pkgdir/usr/lib/libGLX_indirect.so.0"
 }
 
@@ -784,7 +898,7 @@ package_lib32-mesa() {
 
         pkg_prep
 
-        DESTDIR="$pkgdir" ninja -j$(nproc) -C _build-mesa32 install
+        DESTDIR="$pkgdir" ninja -j16 -l16 -C _build-mesa32 install
         ln -s usr/lib32/libGLX_mesa.so.0 "$pkgdir/usr/lib32/libGLX_indirect.so.0"
         rm -rf \
                 "$pkgdir/usr/include" \
